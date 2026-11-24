@@ -1,6 +1,6 @@
 # RemoteTimerSelect
 
-A lightweight replacement for the **Partnerbox** plugin for **OpenATV / Enigma2 (Python 3)**.
+A lightweight replacement for the **Partnerbox** plugin for **Enigma2 / OpenATV 8.0 and higher (Python 3)**.
 Schedule, view, and manage timers across your local receiver and up to **4 remote Enigma2 receivers** directly from the EPG — fully configurable using the remote control.
 
 ## Features
@@ -18,8 +18,8 @@ Connect to your receiver via SSH as `root` and run:
 
 ```bash
 mkdir -p /usr/lib/enigma2/python/Plugins/Extensions/RemoteTimerSelect
-wget -O /usr/lib/enigma2/python/Plugins/Extensions/RemoteTimerSelect/__init__.py https://raw.githubusercontent.com/vlastvs499-beep/RemoteTimerSelect/main/EN/__init__.py
-wget -O /usr/lib/enigma2/python/Plugins/Extensions/RemoteTimerSelect/plugin.py https://raw.githubusercontent.com/vlastvs499-beep/RemoteTimerSelect/main/EN/plugin.py
+wget -O /usr/lib/enigma2/python/Plugins/Extensions/RemoteTimerSelect/__init__.py https://raw.githubusercontent.com/vlastvs499/RemoteTimerSelect/main/EN/__init__.py
+wget -O /usr/lib/enigma2/python/Plugins/Extensions/RemoteTimerSelect/plugin.py https://raw.githubusercontent.com/vlastvs499/RemoteTimerSelect/main/EN/plugin.py
 killall -9 enigma2
 ```
 
