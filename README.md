@@ -9,8 +9,8 @@ Schedule, view, and manage timers across your local receiver and up to **4 remot
 * **Unified All Timers Screen:** View all local and remote timers in one chronologically sorted, column-aligned overview (`Date & Time` → `Status` → `Badge` → `Channel | Event`) with color-coded statuses.
 * **Remote Control Setup:** Configure up to 4 remote boxes (name, tag, IP address, OpenWebif port, optional login) directly on TV — settings are saved in `/etc/enigma2/settings`.
 * **Automatic & Bulk Cleanup:** Automatically removes finished/failed timers older than X days, plus one-click bulk cleanup across all receivers.
-* * **Dynamic Remote Recording Path:** Automatically queries each remote receiver for its active recording directory. It prioritizes the folder currently opened in the remote receiver's recordings list, allowing you to instantly and easily change the target recording directory (e.g., via the web interface).
-* 
+* **Dynamic Remote Recording Path:** Automatically queries each remote receiver for its active recording directory. It prioritizes the folder currently opened in the remote receiver's recordings list, allowing you to instantly and easily change the target recording directory (e.g., via the web interface).
+
 
 ## Installation
 
