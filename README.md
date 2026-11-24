@@ -1,6 +1,6 @@
-# RemoteTimerSelect
+# RemoteTimerSelect499
 
-A lightweight replacement for the **Partnerbox** plugin for **Enigma2 / OpenATV 8.0 and higher (Python 3)**.
+A lightweight replacement for the **Partnerbox** plugin for **OpenATV / Enigma2 (Python 3)**.
 Schedule, view, and manage timers across your local receiver and up to **4 remote Enigma2 receivers** directly from the EPG — fully configurable using the remote control.
 
 ## Features
@@ -11,11 +11,9 @@ Schedule, view, and manage timers across your local receiver and up to **4 remot
 * **Automatic & Bulk Cleanup:** Automatically removes finished/failed timers older than X days, plus one-click bulk cleanup across all receivers.
 * **Dynamic Remote Recording Path:** Automatically queries each remote receiver for its active recording directory.
 
-* > **Note:** After installation, the **All Timers** item will appear in the main menu.
+## Installation
 
-## Installation (English version)
-
-### Option 1: Quick Install via SSH
+### Option 1: Quick Install via SSH (English version)
 Connect to your receiver via SSH as `root` and run:
 
 ```bash
@@ -25,10 +23,24 @@ wget -O /usr/lib/enigma2/python/Plugins/Extensions/RemoteTimerSelect499/plugin.p
 killall -9 enigma2
 ```
 
+### Option 1b: Quick Install via SSH (Czech version / Česká verze)
+Connect to your receiver via SSH as `root` and run:
+
+```bash
+mkdir -p /usr/lib/enigma2/python/Plugins/Extensions/RemoteTimerSelect499
+wget -O /usr/lib/enigma2/python/Plugins/Extensions/RemoteTimerSelect499/__init__.py
+https://raw.githubusercontent.com/vlastvs499/RemoteTimerSelect499/main/CZ/__init__.py
+wget -O /usr/lib/enigma2/python/Plugins/Extensions/RemoteTimerSelect499/plugin.py
+https://raw.githubusercontent.com/vlastvs499/RemoteTimerSelect499/main/CZ/plugin.py
+killall -9 enigma2
+```
+
 ### Option 2: Manual Installation
 1. Create the directory `/usr/lib/enigma2/python/Plugins/Extensions/RemoteTimerSelect499/` on your receiver.
-2. Copy `EN/__init__.py` and `EN/plugin.py` into that folder (keep **UTF-8** encoding and **LF** line endings).
+2. Copy `__init__.py` and `plugin.py` from either the `EN/` or `CZ/` folder into that directory (keep **UTF-8** encoding and **LF** line endings).
 3. Restart Enigma2 GUI (`killall -9 enigma2` or via **Menu → Standby / Restart → Restart GUI**).
+
+> **Note:** After installation, the **All Timers** (**Všechny časovače**) item will appear in the main menu.
 
 ## Configuration (Remote Control)
 1. Open setup via any of these menus:
