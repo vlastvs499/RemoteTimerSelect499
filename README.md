@@ -11,6 +11,8 @@ Schedule, view, and manage timers across your local receiver and up to **4 remot
 * **Automatic & Bulk Cleanup:** Automatically removes finished/failed timers older than X days, plus one-click bulk cleanup across all receivers.
 * **Dynamic Remote Recording Path:** Automatically queries each remote receiver for its active recording directory.
 
+* > **Note:** After installation, the **All Timers** item will appear in the main menu.
+
 ## Installation (English version)
 
 ### Option 1: Quick Install via SSH
