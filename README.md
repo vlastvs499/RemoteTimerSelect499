@@ -26,7 +26,7 @@ killall -9 enigma2
 ```
 
 ### Option 2: Manual Installation
-1. Create the directory `/usr/lib/enigma2/python/Plugins/Extensions/RemoteTimerSelect/` on your receiver.
+1. Create the directory `/usr/lib/enigma2/python/Plugins/Extensions/RemoteTimerSelect499/` on your receiver.
 2. Copy `EN/__init__.py` and `EN/plugin.py` into that folder (keep **UTF-8** encoding and **LF** line endings).
 3. Restart Enigma2 GUI (`killall -9 enigma2` or via **Menu → Standby / Restart → Restart GUI**).
 
