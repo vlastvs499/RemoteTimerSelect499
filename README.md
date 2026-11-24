@@ -19,9 +19,9 @@ Schedule, view, and manage timers across your local receiver and up to **4 remot
 Connect to your receiver via SSH as `root` and run:
 
 ```bash
-mkdir -p /usr/lib/enigma2/python/Plugins/Extensions/RemoteTimerSelect
-wget -O /usr/lib/enigma2/python/Plugins/Extensions/RemoteTimerSelect/__init__.py https://raw.githubusercontent.com/vlastvs499/RemoteTimerSelect/main/EN/__init__.py
-wget -O /usr/lib/enigma2/python/Plugins/Extensions/RemoteTimerSelect/plugin.py https://raw.githubusercontent.com/vlastvs499/RemoteTimerSelect/main/EN/plugin.py
+mkdir -p /usr/lib/enigma2/python/Plugins/Extensions/RemoteTimerSelect499
+wget -O /usr/lib/enigma2/python/Plugins/Extensions/RemoteTimerSelect499/__init__.py https://raw.githubusercontent.com/vlastvs499/RemoteTimerSelect499/main/EN/__init__.py
+wget -O /usr/lib/enigma2/python/Plugins/Extensions/RemoteTimerSelect499/plugin.py https://raw.githubusercontent.com/vlastvs499/RemoteTimerSelect499/main/EN/plugin.py
 killall -9 enigma2
 ```
 
