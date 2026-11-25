@@ -4,12 +4,14 @@ A lightweight replacement for the **Partnerbox** plugin for **OpenATV / Enigma2 
 Schedule, view, and manage timers across your local receiver and up to **4 remote Enigma2 receivers** directly from the EPG — fully configurable using the remote control.
 
 ## Features
-* **Direct EPG Recording & Cancellation:** Press **REC** on any program in the EPG to choose the local or any remote receiver (with custom start/end margins), or cancel an existing timer directly from the popup menu.
+* **Direct EPG Recording & Cancellation:** Press **REC** on any program in the EPG to choose the local or any remote receiver (with custom start/end margins), or cancel an existing timer or recording directly from the popup menu.
 * **EPG Timer Badges:** Programs scheduled on remote receivers are automatically marked with custom receiver tags (e.g. `[B1]`, `[M]`, `[V]`) directly in the EPG list.
 * **Unified All Timers Screen:** View all local and remote timers in one chronologically sorted, column-aligned overview (`Date & Time` → `Status` → `Badge` → `Channel | Event`) with color-coded statuses.
 * **Remote Control Setup:** Configure up to 4 remote boxes (name, tag, IP address, OpenWebif port, optional login) directly on TV — settings are saved in `/etc/enigma2/settings`.
 * **Automatic & Bulk Cleanup:** Automatically removes finished/failed timers older than X days, plus one-click bulk cleanup across all receivers.
 * **Dynamic Remote Recording Path:** Automatically queries each remote receiver for its active recording directory. It prioritizes the folder currently opened in the remote receiver's recordings list, allowing you to instantly and easily change the target recording directory (e.g., via the web interface).
+
+* **Note:** The remote control button for instant recording on the local box remains unchanged — partner boxes are not shown there! Always schedule timers and start instant recordings exclusively via the EPG. There, you can also start an instant recording on the local box by adding an immediate timer (press the **Green** button on a currently running EPG event).
 
 
 ## Installation
