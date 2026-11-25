@@ -13,7 +13,7 @@ Schedule, view, and manage timers across your local receiver and up to **4 remot
 
 * **All Timers:** Open **Menu → All Timers** (also available under **Timers**, **Extensions**, and **Plugins**). Press **OK** on a timer to delete it, press **RED** on an active recording to choose **STOP REC** or **STOP & DELETE Recording** (stops the recording and deletes the timer + file from disk), or select the top banner to bulk-delete finished and failed timers.
 
-* **Note:** The remote control button for instant recording on the local box remains unchanged — partner boxes are not shown there! Always schedule timers and start instant recordings exclusively via the EPG. There, you can also start an instant recording on the local box by adding an immediate timer (press the **Green** button on a currently running EPG event).
+* **Note:** The remote control button for instant recording on the local box remains unchanged — partner boxes are not shown there! Always schedule timers and start instant recordings exclusively via the EPG. There, you can also start an instant recording on the local box by adding an immediate timer (press the **Green** button or REC button on a currently running EPG event).
 
 
 ## Installation
