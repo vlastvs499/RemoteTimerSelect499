@@ -69,7 +69,7 @@ killall -9 enigma2
 ## Usage
 * **EPG:** Highlight an event and press **REC** to schedule or cancel a timer on any configured box.
 * **All Timers:** Open **Menu → All Timers** (also available under **Timers**, **Extensions**, and **Plugins**). Press **OK** on a timer to delete it, or select the top banner to bulk-delete finished and failed timers.
-*  **Live recording status in receiver selection:** When choosing a receiver to record with, any box that is currently recording is now highlighted in **red** with its recording end time shown on the right (e.g., `REC until: 19:00`).
+* **Live recording status in receiver selection:** When choosing a receiver to record with, any receiver that is currently recording is now highlighted in **red** with its recording end time shown on the right (e.g., `REC until: 19:00`).
 * **Local receiver tag in EPG (max. 2 characters):** Local timers are now also marked in the EPG in square brackets (e.g., `[L]`) for a unified look alongside OpenATV's native recording icons. The local tag is intentionally limited to a maximum of 2 characters so it does not take up too much space in the EPG program titles.
 * **Tip:** If you have multiple receivers, I recommend installing the plugin on all of them so you can schedule and delete timers across all boxes, depending on which one you are currently using.
   
