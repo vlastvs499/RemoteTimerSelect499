@@ -1101,11 +1101,22 @@ def fetch_remote_timers(box):
 
 
 def _stop_remote_timer_raw(box, timer_item):
-    url_base = "http://%s:%d/web/timertogglestatus?" % (box["ip"], box["port"])
+    now_ts = int(time.time())
+    new_end = max(int(timer_item["begin"]) + 1, now_ts)
+    url_base = "http://%s:%d/web/timerchange?" % (box["ip"], box["port"])
     params = {
         "sRef": timer_item["sref"],
         "begin": str(timer_item["begin"]),
-        "end": str(timer_item["end"]),
+        "end": str(new_end),
+        "name": timer_item["name"],
+        "description": "",
+        "channelOld": timer_item["sref"],
+        "beginOld": str(timer_item["begin"]),
+        "endOld": str(timer_item["end"]),
+        "disabled": "0",
+        "justplay": "0",
+        "afterevent": "0",
+        "deleteOldOnSave": "1",
     }
     url = url_base + urllib.parse.urlencode(params)
     req = _build_request(box, url)
@@ -1168,18 +1179,6 @@ def _delete_local_timer_raw(session, timer_item):
 
 def stop_any_timer(session, timer_item, delete_after=False):
     if timer_item["is_local"]:
-        ok, statetext = _stop_local_timer_raw(session, timer_item)
-        if not ok:
-            msg = "Chyba při zastavení lokálního nahrávání:\n%s" % statetext
-            session.openWithCallback(
-                lambda _res: open_combined_timers(session),
-                MessageBox,
-                msg,
-                MessageBox.TYPE_ERROR,
-                timeout=6,
-            )
-            return
-
         if delete_after:
             ok_del, del_txt = _delete_local_timer_raw(session, timer_item)
             if ok_del:
@@ -1195,7 +1194,7 @@ def stop_any_timer(session, timer_item, delete_after=False):
                     timeout=3,
                 )
             else:
-                msg = "Nahrávání zastaveno, ale smazání selhalo:\n%s" % del_txt
+                msg = "Chyba při zastavení a smazání:\n%s" % del_txt
                 session.openWithCallback(
                     lambda _res: open_combined_timers(session),
                     MessageBox,
@@ -1203,7 +1202,10 @@ def stop_any_timer(session, timer_item, delete_after=False):
                     MessageBox.TYPE_ERROR,
                     timeout=6,
                 )
-        else:
+            return
+
+        ok, statetext = _stop_local_timer_raw(session, timer_item)
+        if ok:
             msg = "Nahrávání zastaveno (%s):\n%s" % (
                 timer_item["box_name"],
                 timer_item["name"],
@@ -1215,13 +1217,8 @@ def stop_any_timer(session, timer_item, delete_after=False):
                 MessageBox.TYPE_INFO,
                 timeout=3,
             )
-        return
-
-    box = timer_item["box"]
-    try:
-        state_ok, statetext = _stop_remote_timer_raw(box, timer_item)
-        if not state_ok:
-            msg = "Box %s odmítl zastavit nahrávání:\n%s" % (box["name"], statetext)
+        else:
+            msg = "Chyba při zastavení lokálního nahrávání:\n%s" % statetext
             session.openWithCallback(
                 lambda _res: open_combined_timers(session),
                 MessageBox,
@@ -1229,8 +1226,10 @@ def stop_any_timer(session, timer_item, delete_after=False):
                 MessageBox.TYPE_ERROR,
                 timeout=6,
             )
-            return
+        return
 
+    box = timer_item["box"]
+    try:
         if delete_after:
             del_ok, del_txt = _delete_single_timer_raw(box, timer_item)
             sync_timer_cache_async()
@@ -1247,7 +1246,7 @@ def stop_any_timer(session, timer_item, delete_after=False):
                     timeout=3,
                 )
             else:
-                msg = "Nahrávání zastaveno, ale box %s odmítl smazat časovač:\n%s" % (
+                msg = "Box %s odmítl zastavit a smazat časovač:\n%s" % (
                     box["name"],
                     del_txt,
                 )
@@ -1258,8 +1257,11 @@ def stop_any_timer(session, timer_item, delete_after=False):
                     MessageBox.TYPE_ERROR,
                     timeout=6,
                 )
-        else:
-            sync_timer_cache_async()
+            return
+
+        state_ok, statetext = _stop_remote_timer_raw(box, timer_item)
+        sync_timer_cache_async()
+        if state_ok:
             msg = "Nahrávání zastaveno (%s):\n%s" % (box["name"], timer_item["name"])
             session.openWithCallback(
                 lambda _res: open_combined_timers(session),
@@ -1267,6 +1269,15 @@ def stop_any_timer(session, timer_item, delete_after=False):
                 msg,
                 MessageBox.TYPE_INFO,
                 timeout=3,
+            )
+        else:
+            msg = "Box %s odmítl zastavit nahrávání:\n%s" % (box["name"], statetext)
+            session.openWithCallback(
+                lambda _res: open_combined_timers(session),
+                MessageBox,
+                msg,
+                MessageBox.TYPE_ERROR,
+                timeout=6,
             )
     except urllib.error.HTTPError as e:
         msg = "HTTP chyba při zastavení na %s: %s" % (box["name"], e.code)
