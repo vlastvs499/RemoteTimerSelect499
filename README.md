@@ -38,6 +38,16 @@ wget -O /usr/lib/enigma2/python/Plugins/Extensions/RemoteTimerSelect499/plugin.p
 killall -9 enigma2
 ```
 
+### Option 1c: Quick Install via SSH (German version / Deutsche Version)
+Connect to your receiver via SSH as `root` and run:
+```bash
+mkdir -p /usr/lib/enigma2/python/Plugins/Extensions/RemoteTimerSelect499
+wget -O /usr/lib/enigma2/python/Plugins/Extensions/RemoteTimerSelect499/__init__.py https://raw.githubusercontent.com/vlastvs499/RemoteTimerSelect499/main/DE/__init__.py
+wget -O /usr/lib/enigma2/python/Plugins/Extensions/RemoteTimerSelect499/plugin.py https://raw.githubusercontent.com/vlastvs499/RemoteTimerSelect499/main/DE/plugin.py
+killall -9 enigma2
+```
+
+
 ### Option 2: Manual Installation
 1. Create the directory `/usr/lib/enigma2/python/Plugins/Extensions/RemoteTimerSelect499/` on your receiver.
 2. Copy `__init__.py` and `plugin.py` from either the `EN/` or `CZ/` folder into that directory (keep **UTF-8** encoding and **LF** line endings).
