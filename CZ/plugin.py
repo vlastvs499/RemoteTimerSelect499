@@ -360,7 +360,11 @@ class CombinedTimersScreen(Screen):
                 '<screen name="CombinedTimersScreen" position="50,55" size="1820,970" title="Všechny časovače">'
                 '<widget source="title_text" render="Label" position="25,15" size="1770,50" font="Regular;34" foregroundColor="#00ffcc33" noWrap="1" />'
                 '<widget name="list" position="25,75" size="1770,%d" font="Regular;%d" itemHeight="%d" scrollbarMode="showOnDemand" enableWrapAround="1" />'
-                '<widget source="hint_text" render="Label" position="25,922" size="1770,38" font="Regular;28" foregroundColor="#00aaaaaa" noWrap="1" />'
+                '<widget source="hint_ok" render="Label" position="25,922" size="210,38" font="Regular;28" foregroundColor="#00aaaaaa" noWrap="1" />'
+                '<widget source="hint_red" render="Label" position="235,922" size="140,38" font="Regular;28" foregroundColor="#00ff5555" noWrap="1" />'
+                '<widget source="hint_stop" render="Label" position="375,922" size="195,38" font="Regular;28" foregroundColor="#00aaaaaa" noWrap="1" />'
+                '<widget source="hint_yellow" render="Label" position="570,922" size="105,38" font="Regular;28" foregroundColor="#00ffdd33" noWrap="1" />'
+                '<widget source="hint_rest" render="Label" position="675,922" size="1120,38" font="Regular;28" foregroundColor="#00aaaaaa" noWrap="1" />'
                 "</screen>"
             ) % (rows_h, font_sz, item_h)
         else:
@@ -371,7 +375,11 @@ class CombinedTimersScreen(Screen):
                 '<screen name="CombinedTimersScreen" position="30,35" size="1220,650" title="Všechny časovače">'
                 '<widget source="title_text" render="Label" position="15,10" size="1190,36" font="Regular;24" foregroundColor="#00ffcc33" noWrap="1" />'
                 '<widget name="list" position="15,52" size="1190,%d" font="Regular;%d" itemHeight="%d" scrollbarMode="showOnDemand" enableWrapAround="1" />'
-                '<widget source="hint_text" render="Label" position="15,606" size="1190,32" font="Regular;20" foregroundColor="#00aaaaaa" noWrap="1" />'
+                '<widget source="hint_ok" render="Label" position="15,606" size="155,32" font="Regular;20" foregroundColor="#00aaaaaa" noWrap="1" />'
+                '<widget source="hint_red" render="Label" position="170,606" size="100,32" font="Regular;20" foregroundColor="#00ff5555" noWrap="1" />'
+                '<widget source="hint_stop" render="Label" position="270,606" size="145,32" font="Regular;20" foregroundColor="#00aaaaaa" noWrap="1" />'
+                '<widget source="hint_yellow" render="Label" position="415,606" size="75,32" font="Regular;20" foregroundColor="#00ffdd33" noWrap="1" />'
+                '<widget source="hint_rest" render="Label" position="490,606" size="715,32" font="Regular;20" foregroundColor="#00aaaaaa" noWrap="1" />'
                 "</screen>"
             ) % (rows_h, font_sz, item_h)
 
@@ -384,7 +392,11 @@ class CombinedTimersScreen(Screen):
                 mc_entries.append(_build_banner_entry(payload, text, is_fhd, item_h, color=b_color))
 
         self["title_text"] = StaticText(title)
-        self["hint_text"] = StaticText("OK = smazat   |   ŽLUTÁ / MENU = nastavení boxů   |   EXIT = zavřít")
+        self["hint_ok"] = StaticText("OK = smazat  |")
+        self["hint_red"] = StaticText("ČERVENÁ")
+        self["hint_stop"] = StaticText("= stop REC  |")
+        self["hint_yellow"] = StaticText("ŽLUTÁ")
+        self["hint_rest"] = StaticText("/ MENU = nastavení boxů  |  EXIT = zavřít")
         self["list"] = MenuList(
             mc_entries,
             enableWrapAround=True,
@@ -398,6 +410,7 @@ class CombinedTimersScreen(Screen):
             {
                 "ok": self.keyOk,
                 "cancel": self.keyCancel,
+                "red": self.keyRed,
                 "yellow": self.keySetup,
                 "menu": self.keySetup,
             },
@@ -408,6 +421,11 @@ class CombinedTimersScreen(Screen):
         cur = self["list"].getCurrent()
         if cur:
             self.close(("SELECT", cur[0]))
+
+    def keyRed(self):
+        cur = self["list"].getCurrent()
+        if cur:
+            self.close(("STOP_REC", cur[0]))
 
     def keySetup(self):
         self.close(("OPEN_SETUP", None))
@@ -941,7 +959,7 @@ def open_box_selector(session, event, service, local_callback=None, on_changed_c
     )
 
 
-# --- Souhrnny prehled a mazani casovacu ze vsech prijimacu ---
+# --- Souhrnny prehled, zastaveni a mazani casovacu ze vsech prijimacu ---
 
 def _format_timer_state(state_str, disabled_str, end_ts, now_ts):
     if disabled_str == "1":
@@ -1082,6 +1100,41 @@ def fetch_remote_timers(box):
     return timers
 
 
+def _stop_remote_timer_raw(box, timer_item):
+    url_base = "http://%s:%d/web/timertogglestatus?" % (box["ip"], box["port"])
+    params = {
+        "sRef": timer_item["sref"],
+        "begin": str(timer_item["begin"]),
+        "end": str(timer_item["end"]),
+    }
+    url = url_base + urllib.parse.urlencode(params)
+    req = _build_request(box, url)
+    with urllib.request.urlopen(req, timeout=5) as resp:
+        xml_data = resp.read()
+    root = ET.fromstring(xml_data)
+    state_ok = _xml_text(root, "e2state").lower() == "true"
+    statetext = _xml_text(root, "e2statetext", "Bez odpovědi")
+    return state_ok, statetext
+
+
+def _stop_local_timer_raw(session, timer_item):
+    rec_timer = getattr(session.nav, "RecordTimer", None)
+    t_obj = timer_item.get("local_obj")
+    if rec_timer is None or t_obj is None:
+        return False, "Lokální časovač nenalezen"
+    try:
+        if hasattr(t_obj, "afterEvent"):
+            t_obj.afterEvent = 0
+        if hasattr(t_obj, "disable"):
+            t_obj.disable()
+        else:
+            t_obj.disabled = True
+        rec_timer.timeChanged(t_obj)
+        return True, "Nahrávání zastaveno"
+    except Exception as e:
+        return False, str(e)
+
+
 def _delete_single_timer_raw(box, timer_item):
     url_base = "http://%s:%d/web/timerdelete?" % (box["ip"], box["port"])
     params = {
@@ -1111,6 +1164,137 @@ def _delete_local_timer_raw(session, timer_item):
         return True, "Smazáno"
     except Exception as e:
         return False, str(e)
+
+
+def stop_any_timer(session, timer_item, delete_after=False):
+    if timer_item["is_local"]:
+        ok, statetext = _stop_local_timer_raw(session, timer_item)
+        if not ok:
+            msg = "Chyba při zastavení lokálního nahrávání:\n%s" % statetext
+            session.openWithCallback(
+                lambda _res: open_combined_timers(session),
+                MessageBox,
+                msg,
+                MessageBox.TYPE_ERROR,
+                timeout=6,
+            )
+            return
+
+        if delete_after:
+            ok_del, del_txt = _delete_local_timer_raw(session, timer_item)
+            if ok_del:
+                msg = "Nahrávání zastaveno a časovač smazán (%s):\n%s" % (
+                    timer_item["box_name"],
+                    timer_item["name"],
+                )
+                session.openWithCallback(
+                    lambda _res: open_combined_timers(session),
+                    MessageBox,
+                    msg,
+                    MessageBox.TYPE_INFO,
+                    timeout=3,
+                )
+            else:
+                msg = "Nahrávání zastaveno, ale smazání selhalo:\n%s" % del_txt
+                session.openWithCallback(
+                    lambda _res: open_combined_timers(session),
+                    MessageBox,
+                    msg,
+                    MessageBox.TYPE_ERROR,
+                    timeout=6,
+                )
+        else:
+            msg = "Nahrávání zastaveno (%s):\n%s" % (
+                timer_item["box_name"],
+                timer_item["name"],
+            )
+            session.openWithCallback(
+                lambda _res: open_combined_timers(session),
+                MessageBox,
+                msg,
+                MessageBox.TYPE_INFO,
+                timeout=3,
+            )
+        return
+
+    box = timer_item["box"]
+    try:
+        state_ok, statetext = _stop_remote_timer_raw(box, timer_item)
+        if not state_ok:
+            msg = "Box %s odmítl zastavit nahrávání:\n%s" % (box["name"], statetext)
+            session.openWithCallback(
+                lambda _res: open_combined_timers(session),
+                MessageBox,
+                msg,
+                MessageBox.TYPE_ERROR,
+                timeout=6,
+            )
+            return
+
+        if delete_after:
+            del_ok, del_txt = _delete_single_timer_raw(box, timer_item)
+            sync_timer_cache_async()
+            if del_ok:
+                msg = "Nahrávání zastaveno a časovač smazán (%s):\n%s" % (
+                    box["name"],
+                    timer_item["name"],
+                )
+                session.openWithCallback(
+                    lambda _res: open_combined_timers(session),
+                    MessageBox,
+                    msg,
+                    MessageBox.TYPE_INFO,
+                    timeout=3,
+                )
+            else:
+                msg = "Nahrávání zastaveno, ale box %s odmítl smazat časovač:\n%s" % (
+                    box["name"],
+                    del_txt,
+                )
+                session.openWithCallback(
+                    lambda _res: open_combined_timers(session),
+                    MessageBox,
+                    msg,
+                    MessageBox.TYPE_ERROR,
+                    timeout=6,
+                )
+        else:
+            sync_timer_cache_async()
+            msg = "Nahrávání zastaveno (%s):\n%s" % (box["name"], timer_item["name"])
+            session.openWithCallback(
+                lambda _res: open_combined_timers(session),
+                MessageBox,
+                msg,
+                MessageBox.TYPE_INFO,
+                timeout=3,
+            )
+    except urllib.error.HTTPError as e:
+        msg = "HTTP chyba při zastavení na %s: %s" % (box["name"], e.code)
+        session.openWithCallback(
+            lambda _res: open_combined_timers(session),
+            MessageBox,
+            msg,
+            MessageBox.TYPE_ERROR,
+            timeout=6,
+        )
+    except urllib.error.URLError as e:
+        msg = "Nelze se připojit k %s:\n%s" % (box["name"], e.reason)
+        session.openWithCallback(
+            lambda _res: open_combined_timers(session),
+            MessageBox,
+            msg,
+            MessageBox.TYPE_ERROR,
+            timeout=6,
+        )
+    except Exception as e:
+        msg = "Chyba při zastavení (%s):\n%s" % (box["name"], str(e))
+        session.openWithCallback(
+            lambda _res: open_combined_timers(session),
+            MessageBox,
+            msg,
+            MessageBox.TYPE_ERROR,
+            timeout=6,
+        )
 
 
 def auto_cleanup_old_timers(box):
@@ -1293,6 +1477,42 @@ def open_combined_timers(session, **kwargs):
 
         if cmd == "OPEN_SETUP" or selected == "OPEN_SETUP":
             open_setup_screen(session, callback=lambda _saved: open_combined_timers(session))
+            return
+
+        if cmd == "STOP_REC":
+            if not isinstance(selected, dict) or selected.get("state") != "2":
+                session.openWithCallback(
+                    lambda _res: open_combined_timers(session),
+                    MessageBox,
+                    "Vybraný časovač právě nenahrává.",
+                    MessageBox.TYPE_INFO,
+                    timeout=3,
+                )
+                return
+
+            t_item = selected
+            stop_choices = [
+                ("STOP REC", "STOP_ONLY"),
+                ("STOP REC & DELETE", "STOP_DELETE"),
+            ]
+
+            def on_stop_choice(choice):
+                if not choice:
+                    open_combined_timers(session)
+                    return
+                action = choice[1]
+                if action == "STOP_ONLY":
+                    stop_any_timer(session, t_item, delete_after=False)
+                elif action == "STOP_DELETE":
+                    stop_any_timer(session, t_item, delete_after=True)
+
+            stop_title = "Ukončit nahrávání [%s]: %s" % (t_item["tag"], t_item["name"])
+            session.openWithCallback(
+                on_stop_choice,
+                ChoiceBox,
+                title=stop_title,
+                list=stop_choices,
+            )
             return
 
         if selected is None:
