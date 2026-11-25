@@ -2,6 +2,7 @@
 import base64
 from datetime import datetime
 import inspect
+import os
 import threading
 import time
 import urllib.error
@@ -13,6 +14,8 @@ from enigma import (
     RT_HALIGN_LEFT,
     RT_VALIGN_CENTER,
     eListboxPythonMultiContent,
+    eServiceCenter,
+    eServiceReference,
     eTimer,
     gFont,
     getDesktop,
@@ -959,7 +962,7 @@ def open_box_selector(session, event, service, local_callback=None, on_changed_c
     )
 
 
-# --- Souhrnny prehled, zastaveni a mazani casovacu ze vsech prijimacu ---
+# --- Souhrnny prehled, zastaveni a mazani casovacu i nahravek ---
 
 def _format_timer_state(state_str, disabled_str, end_ts, now_ts):
     if disabled_str == "1":
@@ -1013,6 +1016,7 @@ def fetch_local_timers(session):
             state_str = str(getattr(t, "state", 0))
             disabled_str = "1" if getattr(t, "disabled", False) else "0"
             name = str(getattr(t, "name", "Bez názvu") or "Bez názvu")
+            filename = str(getattr(t, "Filename", "") or "")
             sref_obj = getattr(t, "service_ref", None)
             if sref_obj and hasattr(sref_obj, "getServiceName"):
                 sname = sref_obj.getServiceName() or "Neznámý kanál"
@@ -1030,6 +1034,7 @@ def fetch_local_timers(session):
                     "box_name": "Tento přijímač",
                     "tag": l_tag,
                     "local_obj": t,
+                    "filename": filename,
                     "sref": sref_str,
                     "sname": sname,
                     "name": name,
@@ -1063,6 +1068,7 @@ def fetch_remote_timers(box):
         sref = _xml_text(item, "e2servicereference")
         sname = _xml_text(item, "e2servicename", "Neznámý kanál")
         name = _xml_text(item, "e2name", "Bez názvu")
+        filename = _xml_text(item, "e2filename", "")
         begin_str = _xml_text(item, "e2timebegin", "0")
         end_str = _xml_text(item, "e2timeend", "0")
         state_str = _xml_text(item, "e2state", "0")
@@ -1085,6 +1091,7 @@ def fetch_remote_timers(box):
                 "box_name": box["name"],
                 "tag": tag,
                 "local_obj": None,
+                "filename": filename,
                 "sref": sref,
                 "sname": sname,
                 "name": name,
@@ -1177,12 +1184,111 @@ def _delete_local_timer_raw(session, timer_item):
         return False, str(e)
 
 
+def _delete_local_recording_raw(timer_item):
+    filename = timer_item.get("filename", "")
+    if not filename:
+        t_obj = timer_item.get("local_obj")
+        if t_obj is not None:
+            filename = str(getattr(t_obj, "Filename", "") or "")
+    if not filename:
+        return False, "Cesta k souboru nahrávky nebyla nalezena"
+
+    ts_path = filename if filename.endswith(".ts") else (filename + ".ts")
+    base_no_ext = ts_path[:-3]
+
+    # 1. Nativni smazani pres Enigma2 eServiceCenter (smaze i doprovodne soubory)
+    try:
+        sref = eServiceReference("1:0:0:0:0:0:0:0:0:0:" + ts_path)
+        service_handler = eServiceCenter.getInstance()
+        offline = service_handler.offlineOperations(sref)
+        if offline is not None and offline.deleteFromDisk(0) == 0:
+            return True, "Nahrávka smazána"
+    except Exception:
+        pass
+
+    # 2. Zalozni prime smazani ze souboroveho systemu
+    removed_any = False
+    for ext in (".ts", ".ts.meta", ".ts.cuts", ".ts.ap", ".ts.sc", ".eit"):
+        fpath = base_no_ext + ext
+        try:
+            if os.path.exists(fpath):
+                os.remove(fpath)
+                removed_any = True
+        except Exception:
+            pass
+
+    if removed_any:
+        return True, "Nahrávka smazána"
+    return False, "Soubor nahrávky nenalezen na disku"
+
+
+def _find_remote_movie_sref(box, timer_item):
+    filename = (timer_item.get("filename") or "").strip()
+    if filename:
+        ts_path = filename if filename.endswith(".ts") else (filename + ".ts")
+        return "1:0:0:0:0:0:0:0:0:0:" + ts_path
+
+    # Zaloha: dohledani nahravky pres /web/movielist podle nazvu a casu
+    try:
+        url = "http://%s:%d/web/movielist" % (box["ip"], box["port"])
+        req = _build_request(box, url)
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            xml_data = resp.read()
+        root = ET.fromstring(xml_data)
+        target_name = (timer_item.get("name") or "").strip().lower()
+        target_begin = int(timer_item.get("begin") or 0)
+        for movie in root.findall("e2movie"):
+            m_sref = _xml_text(movie, "e2servicereference")
+            m_title = _xml_text(movie, "e2title").lower()
+            m_time_str = _xml_text(movie, "e2time", "0")
+            try:
+                m_time = int(float(m_time_str))
+            except Exception:
+                m_time = 0
+            if m_sref and target_name and m_title == target_name:
+                if target_begin == 0 or abs(m_time - target_begin) < 1800:
+                    return m_sref
+    except Exception:
+        pass
+    return ""
+
+
+def _delete_remote_recording_raw(box, timer_item):
+    movie_sref = _find_remote_movie_sref(box, timer_item)
+    if not movie_sref:
+        return False, "Cesta k nahrávce nebyla nalezena"
+
+    url_base = "http://%s:%d/web/moviedelete?" % (box["ip"], box["port"])
+    params = {"sRef": movie_sref}
+    url = url_base + urllib.parse.urlencode(params)
+    req = _build_request(box, url)
+    with urllib.request.urlopen(req, timeout=6) as resp:
+        xml_data = resp.read()
+    root = ET.fromstring(xml_data)
+    state_ok = _xml_text(root, "e2state").lower() == "true"
+    statetext = _xml_text(root, "e2statetext", "Bez odpovědi")
+    return state_ok, statetext
+
+
 def stop_any_timer(session, timer_item, delete_after=False):
     if timer_item["is_local"]:
         if delete_after:
             ok_del, del_txt = _delete_local_timer_raw(session, timer_item)
-            if ok_del:
-                msg = "Nahrávání zastaveno a časovač smazán (%s):\n%s" % (
+            if not ok_del:
+                msg = "Chyba při zastavení a smazání:\n%s" % del_txt
+                session.openWithCallback(
+                    lambda _res: open_combined_timers(session),
+                    MessageBox,
+                    msg,
+                    MessageBox.TYPE_ERROR,
+                    timeout=6,
+                )
+                return
+
+            time.sleep(1.2)
+            ok_rec, rec_txt = _delete_local_recording_raw(timer_item)
+            if ok_rec:
+                msg = "Nahrávání zastaveno, časovač i nahrávka smazány (%s):\n%s" % (
                     timer_item["box_name"],
                     timer_item["name"],
                 )
@@ -1191,10 +1297,13 @@ def stop_any_timer(session, timer_item, delete_after=False):
                     MessageBox,
                     msg,
                     MessageBox.TYPE_INFO,
-                    timeout=3,
+                    timeout=4,
                 )
             else:
-                msg = "Chyba při zastavení a smazání:\n%s" % del_txt
+                msg = "Časovač smazán, ale smazání nahrávky selhalo (%s):\n%s" % (
+                    timer_item["box_name"],
+                    rec_txt,
+                )
                 session.openWithCallback(
                     lambda _res: open_combined_timers(session),
                     MessageBox,
@@ -1233,8 +1342,24 @@ def stop_any_timer(session, timer_item, delete_after=False):
         if delete_after:
             del_ok, del_txt = _delete_single_timer_raw(box, timer_item)
             sync_timer_cache_async()
-            if del_ok:
-                msg = "Nahrávání zastaveno a časovač smazán (%s):\n%s" % (
+            if not del_ok:
+                msg = "Box %s odmítl zastavit a smazat časovač:\n%s" % (
+                    box["name"],
+                    del_txt,
+                )
+                session.openWithCallback(
+                    lambda _res: open_combined_timers(session),
+                    MessageBox,
+                    msg,
+                    MessageBox.TYPE_ERROR,
+                    timeout=6,
+                )
+                return
+
+            time.sleep(1.2)
+            rec_ok, rec_txt = _delete_remote_recording_raw(box, timer_item)
+            if rec_ok:
+                msg = "Nahrávání zastaveno, časovač i nahrávka smazány (%s):\n%s" % (
                     box["name"],
                     timer_item["name"],
                 )
@@ -1243,12 +1368,12 @@ def stop_any_timer(session, timer_item, delete_after=False):
                     MessageBox,
                     msg,
                     MessageBox.TYPE_INFO,
-                    timeout=3,
+                    timeout=4,
                 )
             else:
-                msg = "Box %s odmítl zastavit a smazat časovač:\n%s" % (
+                msg = "Časovač smazán, ale box %s nesmazal nahrávku:\n%s" % (
                     box["name"],
-                    del_txt,
+                    rec_txt,
                 )
                 session.openWithCallback(
                     lambda _res: open_combined_timers(session),
@@ -1504,7 +1629,7 @@ def open_combined_timers(session, **kwargs):
             t_item = selected
             stop_choices = [
                 ("STOP REC", "STOP_ONLY"),
-                ("STOP REC & DELETE", "STOP_DELETE"),
+                ("STOP REC & SMAZAT NAHRÁVKU", "STOP_DELETE"),
             ]
 
             def on_stop_choice(choice):
