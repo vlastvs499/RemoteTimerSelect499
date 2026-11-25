@@ -2,6 +2,7 @@
 import base64
 from datetime import datetime
 import inspect
+import os
 import threading
 import time
 import urllib.error
@@ -13,6 +14,8 @@ from enigma import (
     RT_HALIGN_LEFT,
     RT_VALIGN_CENTER,
     eListboxPythonMultiContent,
+    eServiceCenter,
+    eServiceReference,
     eTimer,
     gFont,
     getDesktop,
@@ -38,10 +41,10 @@ from Screens.ChoiceBox import ChoiceBox
 from Screens.MessageBox import MessageBox
 from Screens.Screen import Screen
 
-# Background refresh interval for EPG timer badges (in seconds)
+# Background EPG mark refresh interval (seconds)
 CACHE_REFRESH_SEC = 300
 
-# Font size in the combined timers overview screen
+# Font size in the combined timers overview
 TIMER_LIST_FONT_FHD = 42
 TIMER_LIST_FONT_HD = 30
 
@@ -143,18 +146,18 @@ class RemoteTimerSetupScreen(ConfigListScreen, Screen):
 
         self["key_red"] = StaticText("Cancel")
         self["key_green"] = StaticText("Save")
-        self["footnote"] = StaticText("OK = virtual keyboard for text   |   Green = save")
+        self["footnote"] = StaticText("OK = virtual keyboard   |   Green = save")
         self["description"] = StaticText("")
 
         cfg = config.plugins.remotetimerselect
         self.list = [
             (
-                getConfigListEntry("This receiver badge", cfg.local_tag),
-                "Short badge shown in timer overview for this local receiver (default: L).",
+                getConfigListEntry("Local receiver tag", cfg.local_tag),
+                "Short tag shown in the timers overview for this local receiver (default: L).",
             ),
             (
-                getConfigListEntry("Auto-cleanup finished/failed (days)", cfg.auto_cleanup_days),
-                "Automatically delete finished and failed timers older than X days (0 = disabled).",
+                getConfigListEntry("Auto-delete done/failed timers (days)", cfg.auto_cleanup_days),
+                "Automatically delete finished and failed timers older than this many days (0 = off).",
             ),
         ]
 
@@ -163,25 +166,25 @@ class RemoteTimerSetupScreen(ConfigListScreen, Screen):
             self.list.append(
                 (
                     getConfigListEntry("Box %d - Receiver name" % idx, b_cfg.name),
-                    "Display name of remote receiver %d in menus and alerts (e.g. LivingRoom or SF8008)." % idx,
+                    "Display name of remote box %d in menus and messages (e.g. LivingRoom or SF8008)." % idx,
                 )
             )
             self.list.append(
                 (
-                    getConfigListEntry("Box %d - Badge (tag)" % idx, b_cfg.tag),
-                    "Short badge shown in EPG and timer list for receiver %d (e.g. M, V, B%d)." % (idx, idx),
+                    getConfigListEntry("Box %d - Short tag" % idx, b_cfg.tag),
+                    "Short tag shown in EPG and timer list for box %d (e.g. M, V, B%d)." % (idx, idx),
                 )
             )
             self.list.append(
                 (
-                    getConfigListEntry("Box %d - IP address (0.0.0.0 = off)" % idx, b_cfg.ip),
-                    "Local network IP address of receiver %d (use number keys). 0.0.0.0 = disabled." % idx,
+                    getConfigListEntry("Box %d - IP address (0.0.0.0 = disabled)" % idx, b_cfg.ip),
+                    "Local network IP address of box %d (enter with number keys). 0.0.0.0 = disabled." % idx,
                 )
             )
             self.list.append(
                 (
                     getConfigListEntry("Box %d - OpenWebif HTTP port" % idx, b_cfg.port),
-                    "OpenWebif HTTP port on receiver %d (default is 80)." % idx,
+                    "OpenWebif HTTP port on box %d (default is 80)." % idx,
                 )
             )
             self.list.append(
@@ -193,7 +196,7 @@ class RemoteTimerSetupScreen(ConfigListScreen, Screen):
             self.list.append(
                 (
                     getConfigListEntry("Box %d - OpenWebif password" % idx, b_cfg.password),
-                    "OpenWebif password on receiver %d (leave empty if not required)." % idx,
+                    "OpenWebif password for box %d (leave empty if not required)." % idx,
                 )
             )
 
@@ -262,7 +265,7 @@ def _state_color(state_txt):
     colors = {
         "Recording": 0x00FF6666,
         "Waiting": 0x0077DD77,
-        "Finished": 0x0088CCFF,
+        "Done": 0x0088CCFF,
         "Failed": 0x00FFAA44,
         "Preparing": 0x00FFEE66,
         "Disabled": 0x00999999,
@@ -294,17 +297,17 @@ def _build_timer_entry(timer_item, is_fhd, item_h):
     detail_txt = "%s  |  %s" % (timer_item["sname"], timer_item["name"])
     st_color = _state_color(timer_item.get("state_txt", ""))
 
-    # Column order: 1. Date & Time, 2. Status, 3. Receiver badge, 4. Channel | Event name
+    # Column order: 1. Date & time, 2. State, 3. Receiver tag, 4. Channel | Event name
     if is_fhd:
         col1_x, col1_w = 5, 355
-        col2_x, col2_w = 370, 255
-        col3_x, col3_w = 635, 135
-        col4_x, col4_w = 780, 985
+        col2_x, col2_w = 370, 235
+        col3_x, col3_w = 615, 130
+        col4_x, col4_w = 755, 1010
     else:
         col1_x, col1_w = 5, 250
-        col2_x, col2_w = 260, 185
-        col3_x, col3_w = 450, 95
-        col4_x, col4_w = 550, 635
+        col2_x, col2_w = 260, 175
+        col3_x, col3_w = 440, 95
+        col4_x, col4_w = 540, 645
 
     return [
         timer_item,
@@ -360,7 +363,11 @@ class CombinedTimersScreen(Screen):
                 '<screen name="CombinedTimersScreen" position="50,55" size="1820,970" title="All Timers">'
                 '<widget source="title_text" render="Label" position="25,15" size="1770,50" font="Regular;34" foregroundColor="#00ffcc33" noWrap="1" />'
                 '<widget name="list" position="25,75" size="1770,%d" font="Regular;%d" itemHeight="%d" scrollbarMode="showOnDemand" enableWrapAround="1" />'
-                '<widget source="hint_text" render="Label" position="25,922" size="1770,38" font="Regular;28" foregroundColor="#00aaaaaa" noWrap="1" />'
+                '<widget source="hint_ok" render="Label" position="25,922" size="195,38" font="Regular;28" foregroundColor="#00aaaaaa" noWrap="1" />'
+                '<widget source="hint_red" render="Label" position="220,922" size="65,38" font="Regular;28" foregroundColor="#00ff5555" noWrap="1" />'
+                '<widget source="hint_stop" render="Label" position="285,922" size="190,38" font="Regular;28" foregroundColor="#00aaaaaa" noWrap="1" />'
+                '<widget source="hint_yellow" render="Label" position="475,922" size="125,38" font="Regular;28" foregroundColor="#00ffdd33" noWrap="1" />'
+                '<widget source="hint_rest" render="Label" position="600,922" size="1195,38" font="Regular;28" foregroundColor="#00aaaaaa" noWrap="1" />'
                 "</screen>"
             ) % (rows_h, font_sz, item_h)
         else:
@@ -371,7 +378,11 @@ class CombinedTimersScreen(Screen):
                 '<screen name="CombinedTimersScreen" position="30,35" size="1220,650" title="All Timers">'
                 '<widget source="title_text" render="Label" position="15,10" size="1190,36" font="Regular;24" foregroundColor="#00ffcc33" noWrap="1" />'
                 '<widget name="list" position="15,52" size="1190,%d" font="Regular;%d" itemHeight="%d" scrollbarMode="showOnDemand" enableWrapAround="1" />'
-                '<widget source="hint_text" render="Label" position="15,606" size="1190,32" font="Regular;20" foregroundColor="#00aaaaaa" noWrap="1" />'
+                '<widget source="hint_ok" render="Label" position="15,606" size="140,32" font="Regular;20" foregroundColor="#00aaaaaa" noWrap="1" />'
+                '<widget source="hint_red" render="Label" position="155,606" size="50,32" font="Regular;20" foregroundColor="#00ff5555" noWrap="1" />'
+                '<widget source="hint_stop" render="Label" position="205,606" size="140,32" font="Regular;20" foregroundColor="#00aaaaaa" noWrap="1" />'
+                '<widget source="hint_yellow" render="Label" position="345,606" size="90,32" font="Regular;20" foregroundColor="#00ffdd33" noWrap="1" />'
+                '<widget source="hint_rest" render="Label" position="435,606" size="770,32" font="Regular;20" foregroundColor="#00aaaaaa" noWrap="1" />'
                 "</screen>"
             ) % (rows_h, font_sz, item_h)
 
@@ -384,7 +395,11 @@ class CombinedTimersScreen(Screen):
                 mc_entries.append(_build_banner_entry(payload, text, is_fhd, item_h, color=b_color))
 
         self["title_text"] = StaticText(title)
-        self["hint_text"] = StaticText("OK = delete   |   YELLOW / MENU = setup receivers   |   EXIT = close")
+        self["hint_ok"] = StaticText("OK = delete  |")
+        self["hint_red"] = StaticText("RED")
+        self["hint_stop"] = StaticText("= stop REC  |")
+        self["hint_yellow"] = StaticText("YELLOW")
+        self["hint_rest"] = StaticText("/ MENU = box setup  |  EXIT = close")
         self["list"] = MenuList(
             mc_entries,
             enableWrapAround=True,
@@ -398,6 +413,7 @@ class CombinedTimersScreen(Screen):
             {
                 "ok": self.keyOk,
                 "cancel": self.keyCancel,
+                "red": self.keyRed,
                 "yellow": self.keySetup,
                 "menu": self.keySetup,
             },
@@ -408,6 +424,11 @@ class CombinedTimersScreen(Screen):
         cur = self["list"].getCurrent()
         if cur:
             self.close(("SELECT", cur[0]))
+
+    def keyRed(self):
+        cur = self["list"].getCurrent()
+        if cur:
+            self.close(("STOP_REC", cur[0]))
 
     def keySetup(self):
         self.close(("OPEN_SETUP", None))
@@ -420,7 +441,7 @@ class RemoteTimerMarginScreen(ConfigListScreen, Screen):
     def __init__(self, session, box, timer_data, default_before, default_after):
         Screen.__init__(self, session)
         self.skinName = ["Setup"]
-        self.setTitle("Time Margins (%s)" % box["name"])
+        self.setTitle("Time margins (%s)" % box["name"])
 
         self["key_red"] = StaticText("Cancel")
         self["key_green"] = StaticText("Record")
@@ -668,7 +689,7 @@ def find_matching_timers_for_event(session, service, event):
     except Exception:
         pass
 
-    # 2. Check cached remote timers
+    # 2. Check remote timers from cache
     with _CACHE_LOCK:
         snapshot = list(REMOTE_TIMER_CACHE)
 
@@ -757,7 +778,7 @@ def send_timer_http(
             sync_timer_cache_async()
 
             dir_info = remote_dir if remote_dir else "default"
-            msg = "Timer added to %s (-%d / +%d min):\n%s\nPath: %s\n\n(%s)" % (
+            msg = "Timer added on %s (-%d / +%d min):\n%s\nPath: %s\n\n(%s)" % (
                 box["name"],
                 margin_before_min,
                 margin_after_min,
@@ -767,7 +788,7 @@ def send_timer_http(
             )
             session.open(MessageBox, msg, MessageBox.TYPE_INFO, timeout=6)
         else:
-            msg = "Receiver %s rejected timer:\n%s" % (box["name"], statetext)
+            msg = "Box %s rejected the timer:\n%s" % (box["name"], statetext)
             session.open(MessageBox, msg, MessageBox.TYPE_ERROR, timeout=8)
 
     except urllib.error.HTTPError as e:
@@ -815,16 +836,16 @@ def delete_timer_from_epg(session, timer_item, on_changed_callback=None):
             msg = "Timer cancelled (%s):\n%s" % (box["name"], timer_item["name"])
             session.open(MessageBox, msg, MessageBox.TYPE_INFO, timeout=4)
         else:
-            msg = "Receiver %s refused to cancel timer:\n%s" % (box["name"], statetext)
+            msg = "Box %s refused to cancel timer:\n%s" % (box["name"], statetext)
             session.open(MessageBox, msg, MessageBox.TYPE_ERROR, timeout=6)
     except urllib.error.HTTPError as e:
-        msg = "HTTP error cancelling on %s: %s" % (box["name"], e.code)
+        msg = "HTTP error while cancelling on %s: %s" % (box["name"], e.code)
         session.open(MessageBox, msg, MessageBox.TYPE_ERROR, timeout=6)
     except urllib.error.URLError as e:
         msg = "Cannot connect to %s:\n%s" % (box["name"], e.reason)
         session.open(MessageBox, msg, MessageBox.TYPE_ERROR, timeout=6)
     except Exception as e:
-        msg = "Error cancelling (%s):\n%s" % (box["name"], str(e))
+        msg = "Error while cancelling (%s):\n%s" % (box["name"], str(e))
         session.open(MessageBox, msg, MessageBox.TYPE_ERROR, timeout=6)
 
 
@@ -877,7 +898,7 @@ def open_box_selector(session, event, service, local_callback=None, on_changed_c
     if event is None or service is None:
         session.open(
             MessageBox,
-            "Failed to read event data (missing EPG or service).",
+            "Failed to load event data (missing EPG or channel).",
             MessageBox.TYPE_ERROR,
             timeout=5,
         )
@@ -941,13 +962,13 @@ def open_box_selector(session, event, service, local_callback=None, on_changed_c
     )
 
 
-# --- Combined overview and deletion of timers across all receivers ---
+# --- Combined overview, stopping and deleting timers and recordings ---
 
 def _format_timer_state(state_str, disabled_str, end_ts, now_ts):
     if disabled_str == "1":
         return "Disabled"
     if state_str == "3":
-        return "Finished"
+        return "Done"
     if state_str == "2":
         return "Recording"
     if end_ts > 0 and end_ts < now_ts:
@@ -995,6 +1016,7 @@ def fetch_local_timers(session):
             state_str = str(getattr(t, "state", 0))
             disabled_str = "1" if getattr(t, "disabled", False) else "0"
             name = str(getattr(t, "name", "No title") or "No title")
+            filename = str(getattr(t, "Filename", "") or "")
             sref_obj = getattr(t, "service_ref", None)
             if sref_obj and hasattr(sref_obj, "getServiceName"):
                 sname = sref_obj.getServiceName() or "Unknown channel"
@@ -1012,6 +1034,7 @@ def fetch_local_timers(session):
                     "box_name": "This receiver",
                     "tag": l_tag,
                     "local_obj": t,
+                    "filename": filename,
                     "sref": sref_str,
                     "sname": sname,
                     "name": name,
@@ -1045,6 +1068,7 @@ def fetch_remote_timers(box):
         sref = _xml_text(item, "e2servicereference")
         sname = _xml_text(item, "e2servicename", "Unknown channel")
         name = _xml_text(item, "e2name", "No title")
+        filename = _xml_text(item, "e2filename", "")
         begin_str = _xml_text(item, "e2timebegin", "0")
         end_str = _xml_text(item, "e2timeend", "0")
         state_str = _xml_text(item, "e2state", "0")
@@ -1067,6 +1091,7 @@ def fetch_remote_timers(box):
                 "box_name": box["name"],
                 "tag": tag,
                 "local_obj": None,
+                "filename": filename,
                 "sref": sref,
                 "sname": sname,
                 "name": name,
@@ -1080,6 +1105,52 @@ def fetch_remote_timers(box):
         )
 
     return timers
+
+
+def _stop_remote_timer_raw(box, timer_item):
+    now_ts = int(time.time())
+    new_end = max(int(timer_item["begin"]) + 1, now_ts)
+    url_base = "http://%s:%d/web/timerchange?" % (box["ip"], box["port"])
+    params = {
+        "sRef": timer_item["sref"],
+        "begin": str(timer_item["begin"]),
+        "end": str(new_end),
+        "name": timer_item["name"],
+        "description": "",
+        "channelOld": timer_item["sref"],
+        "beginOld": str(timer_item["begin"]),
+        "endOld": str(timer_item["end"]),
+        "disabled": "0",
+        "justplay": "0",
+        "afterevent": "0",
+        "deleteOldOnSave": "1",
+    }
+    url = url_base + urllib.parse.urlencode(params)
+    req = _build_request(box, url)
+    with urllib.request.urlopen(req, timeout=5) as resp:
+        xml_data = resp.read()
+    root = ET.fromstring(xml_data)
+    state_ok = _xml_text(root, "e2state").lower() == "true"
+    statetext = _xml_text(root, "e2statetext", "No response")
+    return state_ok, statetext
+
+
+def _stop_local_timer_raw(session, timer_item):
+    rec_timer = getattr(session.nav, "RecordTimer", None)
+    t_obj = timer_item.get("local_obj")
+    if rec_timer is None or t_obj is None:
+        return False, "Local timer not found"
+    try:
+        if hasattr(t_obj, "afterEvent"):
+            t_obj.afterEvent = 0
+        if hasattr(t_obj, "disable"):
+            t_obj.disable()
+        else:
+            t_obj.disabled = True
+        rec_timer.timeChanged(t_obj)
+        return True, "Recording stopped"
+    except Exception as e:
+        return False, str(e)
 
 
 def _delete_single_timer_raw(box, timer_item):
@@ -1111,6 +1182,255 @@ def _delete_local_timer_raw(session, timer_item):
         return True, "Deleted"
     except Exception as e:
         return False, str(e)
+
+
+def _delete_local_recording_raw(timer_item):
+    filename = timer_item.get("filename", "")
+    if not filename:
+        t_obj = timer_item.get("local_obj")
+        if t_obj is not None:
+            filename = str(getattr(t_obj, "Filename", "") or "")
+    if not filename:
+        return False, "Recording file path not found"
+
+    ts_path = filename if filename.endswith(".ts") else (filename + ".ts")
+    base_no_ext = ts_path[:-3]
+
+    # 1. Native deletion via Enigma2 eServiceCenter (also removes companion files)
+    try:
+        sref = eServiceReference("1:0:0:0:0:0:0:0:0:0:" + ts_path)
+        service_handler = eServiceCenter.getInstance()
+        offline = service_handler.offlineOperations(sref)
+        if offline is not None and offline.deleteFromDisk(0) == 0:
+            return True, "Recording deleted"
+    except Exception:
+        pass
+
+    # 2. Fallback direct filesystem deletion
+    removed_any = False
+    for ext in (".ts", ".ts.meta", ".ts.cuts", ".ts.ap", ".ts.sc", ".eit"):
+        fpath = base_no_ext + ext
+        try:
+            if os.path.exists(fpath):
+                os.remove(fpath)
+                removed_any = True
+        except Exception:
+            pass
+
+    if removed_any:
+        return True, "Recording deleted"
+    return False, "Recording file not found on disk"
+
+
+def _find_remote_movie_sref(box, timer_item):
+    filename = (timer_item.get("filename") or "").strip()
+    if filename:
+        ts_path = filename if filename.endswith(".ts") else (filename + ".ts")
+        return "1:0:0:0:0:0:0:0:0:0:" + ts_path
+
+    # Fallback: lookup recording via /web/movielist by title and start time
+    try:
+        url = "http://%s:%d/web/movielist" % (box["ip"], box["port"])
+        req = _build_request(box, url)
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            xml_data = resp.read()
+        root = ET.fromstring(xml_data)
+        target_name = (timer_item.get("name") or "").strip().lower()
+        target_begin = int(timer_item.get("begin") or 0)
+        for movie in root.findall("e2movie"):
+            m_sref = _xml_text(movie, "e2servicereference")
+            m_title = _xml_text(movie, "e2title").lower()
+            m_time_str = _xml_text(movie, "e2time", "0")
+            try:
+                m_time = int(float(m_time_str))
+            except Exception:
+                m_time = 0
+            if m_sref and target_name and m_title == target_name:
+                if target_begin == 0 or abs(m_time - target_begin) < 1800:
+                    return m_sref
+    except Exception:
+        pass
+    return ""
+
+
+def _delete_remote_recording_raw(box, timer_item):
+    movie_sref = _find_remote_movie_sref(box, timer_item)
+    if not movie_sref:
+        return False, "Recording path not found"
+
+    url_base = "http://%s:%d/web/moviedelete?" % (box["ip"], box["port"])
+    params = {"sRef": movie_sref}
+    url = url_base + urllib.parse.urlencode(params)
+    req = _build_request(box, url)
+    with urllib.request.urlopen(req, timeout=6) as resp:
+        xml_data = resp.read()
+    root = ET.fromstring(xml_data)
+    state_ok = _xml_text(root, "e2state").lower() == "true"
+    statetext = _xml_text(root, "e2statetext", "No response")
+    return state_ok, statetext
+
+
+def stop_any_timer(session, timer_item, delete_after=False):
+    if timer_item["is_local"]:
+        if delete_after:
+            ok_del, del_txt = _delete_local_timer_raw(session, timer_item)
+            if not ok_del:
+                msg = "Error stopping and deleting local timer:\n%s" % del_txt
+                session.openWithCallback(
+                    lambda _res: open_combined_timers(session),
+                    MessageBox,
+                    msg,
+                    MessageBox.TYPE_ERROR,
+                    timeout=6,
+                )
+                return
+
+            time.sleep(1.2)
+            ok_rec, rec_txt = _delete_local_recording_raw(timer_item)
+            if ok_rec:
+                msg = "Recording stopped, timer and recording deleted (%s):\n%s" % (
+                    timer_item["box_name"],
+                    timer_item["name"],
+                )
+                session.openWithCallback(
+                    lambda _res: open_combined_timers(session),
+                    MessageBox,
+                    msg,
+                    MessageBox.TYPE_INFO,
+                    timeout=4,
+                )
+            else:
+                msg = "Timer deleted, but deleting recording failed (%s):\n%s" % (
+                    timer_item["box_name"],
+                    rec_txt,
+                )
+                session.openWithCallback(
+                    lambda _res: open_combined_timers(session),
+                    MessageBox,
+                    msg,
+                    MessageBox.TYPE_ERROR,
+                    timeout=6,
+                )
+            return
+
+        ok, statetext = _stop_local_timer_raw(session, timer_item)
+        if ok:
+            msg = "Recording stopped (%s):\n%s" % (
+                timer_item["box_name"],
+                timer_item["name"],
+            )
+            session.openWithCallback(
+                lambda _res: open_combined_timers(session),
+                MessageBox,
+                msg,
+                MessageBox.TYPE_INFO,
+                timeout=3,
+            )
+        else:
+            msg = "Error stopping local recording:\n%s" % statetext
+            session.openWithCallback(
+                lambda _res: open_combined_timers(session),
+                MessageBox,
+                msg,
+                MessageBox.TYPE_ERROR,
+                timeout=6,
+            )
+        return
+
+    box = timer_item["box"]
+    try:
+        if delete_after:
+            del_ok, del_txt = _delete_single_timer_raw(box, timer_item)
+            sync_timer_cache_async()
+            if not del_ok:
+                msg = "Box %s refused to stop and delete timer:\n%s" % (
+                    box["name"],
+                    del_txt,
+                )
+                session.openWithCallback(
+                    lambda _res: open_combined_timers(session),
+                    MessageBox,
+                    msg,
+                    MessageBox.TYPE_ERROR,
+                    timeout=6,
+                )
+                return
+
+            time.sleep(1.2)
+            rec_ok, rec_txt = _delete_remote_recording_raw(box, timer_item)
+            if rec_ok:
+                msg = "Recording stopped, timer and recording deleted (%s):\n%s" % (
+                    box["name"],
+                    timer_item["name"],
+                )
+                session.openWithCallback(
+                    lambda _res: open_combined_timers(session),
+                    MessageBox,
+                    msg,
+                    MessageBox.TYPE_INFO,
+                    timeout=4,
+                )
+            else:
+                msg = "Timer deleted, but box %s failed to delete recording:\n%s" % (
+                    box["name"],
+                    rec_txt,
+                )
+                session.openWithCallback(
+                    lambda _res: open_combined_timers(session),
+                    MessageBox,
+                    msg,
+                    MessageBox.TYPE_ERROR,
+                    timeout=6,
+                )
+            return
+
+        state_ok, statetext = _stop_remote_timer_raw(box, timer_item)
+        sync_timer_cache_async()
+        if state_ok:
+            msg = "Recording stopped (%s):\n%s" % (box["name"], timer_item["name"])
+            session.openWithCallback(
+                lambda _res: open_combined_timers(session),
+                MessageBox,
+                msg,
+                MessageBox.TYPE_INFO,
+                timeout=3,
+            )
+        else:
+            msg = "Box %s refused to stop recording:\n%s" % (box["name"], statetext)
+            session.openWithCallback(
+                lambda _res: open_combined_timers(session),
+                MessageBox,
+                msg,
+                MessageBox.TYPE_ERROR,
+                timeout=6,
+            )
+    except urllib.error.HTTPError as e:
+        msg = "HTTP error while stopping on %s: %s" % (box["name"], e.code)
+        session.openWithCallback(
+            lambda _res: open_combined_timers(session),
+            MessageBox,
+            msg,
+            MessageBox.TYPE_ERROR,
+            timeout=6,
+        )
+    except urllib.error.URLError as e:
+        msg = "Cannot connect to %s:\n%s" % (box["name"], e.reason)
+        session.openWithCallback(
+            lambda _res: open_combined_timers(session),
+            MessageBox,
+            msg,
+            MessageBox.TYPE_ERROR,
+            timeout=6,
+        )
+    except Exception as e:
+        msg = "Error while stopping (%s):\n%s" % (box["name"], str(e))
+        session.openWithCallback(
+            lambda _res: open_combined_timers(session),
+            MessageBox,
+            msg,
+            MessageBox.TYPE_ERROR,
+            timeout=6,
+        )
 
 
 def auto_cleanup_old_timers(box):
@@ -1221,16 +1541,16 @@ def delete_any_timer(session, timer_item):
                 timeout=3,
             )
         else:
-            msg = "Receiver %s refused to delete timer:\n%s" % (box["name"], statetext)
+            msg = "Box %s refused to delete timer:\n%s" % (box["name"], statetext)
             session.open(MessageBox, msg, MessageBox.TYPE_ERROR, timeout=6)
     except urllib.error.HTTPError as e:
-        msg = "HTTP error deleting on %s: %s" % (box["name"], e.code)
+        msg = "HTTP error while deleting on %s: %s" % (box["name"], e.code)
         session.open(MessageBox, msg, MessageBox.TYPE_ERROR, timeout=6)
     except urllib.error.URLError as e:
         msg = "Cannot connect to %s:\n%s" % (box["name"], e.reason)
         session.open(MessageBox, msg, MessageBox.TYPE_ERROR, timeout=6)
     except Exception as e:
-        msg = "Error deleting (%s):\n%s" % (box["name"], str(e))
+        msg = "Error while deleting (%s):\n%s" % (box["name"], str(e))
         session.open(MessageBox, msg, MessageBox.TYPE_ERROR, timeout=6)
 
 
@@ -1252,7 +1572,7 @@ def open_combined_timers(session, **kwargs):
         except Exception:
             offline_boxes.append(box["name"])
 
-    # Sort chronologically by start date/time
+    # Sort chronologically by start date and time
     all_timers.sort(key=lambda t: (t["begin"], t["end"], t["name"]))
 
     now_ts = int(time.time())
@@ -1261,7 +1581,7 @@ def open_combined_timers(session, **kwargs):
     rows_spec = []
     if not active_boxes:
         rows_spec.append(
-            ("BANNER", "OPEN_SETUP", ">>> No remote receiver configured - open setup <<<")
+            ("BANNER", "OPEN_SETUP", ">>> No remote box configured - open setup <<<")
         )
 
     if offline_boxes:
@@ -1274,7 +1594,7 @@ def open_combined_timers(session, **kwargs):
             (
                 "BANNER",
                 "CLEANUP_ALL",
-                ">>> DELETE ALL FINISHED & FAILED (%d) <<<" % len(finished_or_failed),
+                ">>> DELETE ALL FINISHED AND FAILED (%d) <<<" % len(finished_or_failed),
             )
         )
 
@@ -1283,7 +1603,7 @@ def open_combined_timers(session, **kwargs):
 
     if not rows_spec:
         rows_spec.append(
-            ("BANNER", "OPEN_SETUP", "No timers (press YELLOW button = receiver setup)")
+            ("BANNER", "OPEN_SETUP", "No timers (YELLOW button = box setup)")
         )
 
     def on_screen_closed(result):
@@ -1295,6 +1615,42 @@ def open_combined_timers(session, **kwargs):
             open_setup_screen(session, callback=lambda _saved: open_combined_timers(session))
             return
 
+        if cmd == "STOP_REC":
+            if not isinstance(selected, dict) or selected.get("state") != "2":
+                session.openWithCallback(
+                    lambda _res: open_combined_timers(session),
+                    MessageBox,
+                    "Selected timer is not currently recording.",
+                    MessageBox.TYPE_INFO,
+                    timeout=3,
+                )
+                return
+
+            t_item = selected
+            stop_choices = [
+                ("STOP REC", "STOP_ONLY"),
+                ("STOP & DELETE Recording", "STOP_DELETE"),
+            ]
+
+            def on_stop_choice(choice):
+                if not choice:
+                    open_combined_timers(session)
+                    return
+                action = choice[1]
+                if action == "STOP_ONLY":
+                    stop_any_timer(session, t_item, delete_after=False)
+                elif action == "STOP_DELETE":
+                    stop_any_timer(session, t_item, delete_after=True)
+
+            stop_title = "Stop recording [%s]: %s" % (t_item["tag"], t_item["name"])
+            session.openWithCallback(
+                on_stop_choice,
+                ChoiceBox,
+                title=stop_title,
+                list=stop_choices,
+            )
+            return
+
         if selected is None:
             return
 
@@ -1304,7 +1660,7 @@ def open_combined_timers(session, **kwargs):
 
         if selected == "CLEANUP_ALL":
             confirm_all = (
-                "Bulk delete all finished and failed timers (%d) across all receivers?"
+                "Delete all finished and failed timers (%d) from all receivers?"
                 % len(finished_or_failed)
             )
 
@@ -1354,7 +1710,7 @@ def timer_menu_entry(menuid, **kwargs):
     return []
 
 
-# --- EPG Hook (REC button + automatic badges in EPG) ---
+# --- EPG Hook (REC button + automatic marks in EPG) ---
 
 def _patch_method(cls, method_name):
     if cls is None or not hasattr(cls, method_name):
@@ -1608,14 +1964,14 @@ def Plugins(**kwargs):
         ),
         PluginDescriptor(
             name="All Timers",
-            description="Combined timer list across all receivers",
+            description="Combined list of timers from all receivers",
             where=PluginDescriptor.WHERE_MENU,
             fnc=timer_menu_entry,
             needsRestart=False,
         ),
         PluginDescriptor(
             name="Remote Recording",
-            description="Add timer on a remote receiver",
+            description="Add a timer to a remote receiver",
             where=PluginDescriptor.WHERE_EVENTINFO,
             fnc=eventinfo,
             needsRestart=False,
@@ -1629,7 +1985,7 @@ def Plugins(**kwargs):
         ),
         PluginDescriptor(
             name="All Timers",
-            description="Combined timer overview and deletion across all receivers",
+            description="Combined list and deletion of timers from all receivers",
             where=[
                 PluginDescriptor.WHERE_EXTENSIONSMENU,
                 PluginDescriptor.WHERE_PLUGINMENU,
@@ -1639,7 +1995,7 @@ def Plugins(**kwargs):
         ),
         PluginDescriptor(
             name="Remote Timers - Setup",
-            description="Configure IP addresses and badges of remote receivers",
+            description="Configure IP addresses and tags of remote receivers",
             where=PluginDescriptor.WHERE_PLUGINMENU,
             fnc=open_setup_screen,
             needsRestart=False,
