@@ -11,6 +11,8 @@ Schedule, view, and manage timers across your local receiver and up to **4 remot
 * **Automatic & Bulk Cleanup:** Automatically removes finished/failed timers older than X days, plus one-click bulk cleanup across all receivers.
 * **Dynamic Remote Recording Path:** Automatically queries each remote receiver for its active recording directory. It prioritizes the folder currently opened in the remote receiver's recordings list, allowing you to instantly and easily change the target recording directory (e.g., via the web interface).
 
+  **All Timers:** Open **Menu → All Timers** (also available under **Timers**, **Extensions**, and **Plugins**). Press **OK** on a timer to delete it, press **RED** on an active recording to choose **STOP REC** or **STOP & DELETE Recording** (stops the recording and deletes the timer + file from disk), or select the top banner to bulk-delete finished and failed timers.
+
 * **Note:** The remote control button for instant recording on the local box remains unchanged — partner boxes are not shown there! Always schedule timers and start instant recordings exclusively via the EPG. There, you can also start an instant recording on the local box by adding an immediate timer (press the **Green** button on a currently running EPG event).
 
 
