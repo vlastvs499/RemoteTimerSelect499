@@ -10,8 +10,10 @@ import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
 
+import NavigationInstance
 from enigma import (
     RT_HALIGN_LEFT,
+    RT_HALIGN_RIGHT,
     RT_VALIGN_CENTER,
     eListboxPythonMultiContent,
     eServiceCenter,
@@ -101,7 +103,7 @@ def _ip_list_to_str(ip_val):
 def get_local_tag():
     try:
         val = config.plugins.remotetimerselect.local_tag.value.strip()
-        return val if val else "L"
+        return val[:2] if val else "L"
     except Exception:
         return "L"
 
@@ -152,8 +154,8 @@ class RemoteTimerSetupScreen(ConfigListScreen, Screen):
         cfg = config.plugins.remotetimerselect
         self.list = [
             (
-                getConfigListEntry("Označení tohoto přijímače", cfg.local_tag),
-                "Krátká značka v přehledu časovačů pro tento lokální přijímač (výchozí: L).",
+                getConfigListEntry("Označení tohoto přijímače (max. 2 znaky)", cfg.local_tag),
+                "Krátká značka (max. 2 znaky) v EPG a přehledu časovačů pro tento lokální přijímač (výchozí: L).",
             ),
             (
                 getConfigListEntry("Auto-mazání hotových/selhaných (dny)", cfg.auto_cleanup_days),
@@ -259,6 +261,140 @@ def open_setup_screen(session, callback=None, **kwargs):
             callback(saved)
 
     session.openWithCallback(_on_closed, RemoteTimerSetupScreen)
+
+
+class BoxSelectorScreen(Screen):
+    def __init__(self, session, title, items):
+        Screen.__init__(self, session)
+        self.setTitle(title)
+
+        desktop_w = 1920
+        desktop_h = 1080
+        try:
+            sz = getDesktop(0).size()
+            desktop_w = sz.width()
+            desktop_h = sz.height()
+        except Exception:
+            pass
+
+        is_fhd = desktop_w >= 1920
+        visible_rows = max(3, min(10, len(items)))
+
+        if is_fhd:
+            font_sz = 36
+            item_h = 56
+            win_w = 1180
+            pad_x = 30
+            title_h = 50
+            list_y = 80
+            list_h = visible_rows * item_h
+            win_h = list_y + list_h + 30
+            right_w = 310
+            title_font = 32
+        else:
+            font_sz = 25
+            item_h = 40
+            win_w = 820
+            pad_x = 20
+            title_h = 36
+            list_y = 58
+            list_h = visible_rows * item_h
+            win_h = list_y + list_h + 22
+            right_w = 225
+            title_font = 22
+
+        pos_x = max(20, (desktop_w - win_w) // 2)
+        pos_y = max(20, (desktop_h - win_h) // 2)
+        list_w = win_w - (2 * pad_x)
+
+        self.skin = (
+            '<screen name="BoxSelectorScreen" position="%d,%d" size="%d,%d" title="%s">'
+            '<widget source="title_text" render="Label" position="%d,15" size="%d,%d" font="Regular;%d" foregroundColor="#00ffcc33" noWrap="1" />'
+            '<widget name="list" position="%d,%d" size="%d,%d" font="Regular;%d" itemHeight="%d" scrollbarMode="showOnDemand" enableWrapAround="1" />'
+            "</screen>"
+        ) % (
+            pos_x,
+            pos_y,
+            win_w,
+            win_h,
+            title.replace('"', "&quot;"),
+            pad_x,
+            list_w,
+            title_h,
+            title_font,
+            pad_x,
+            list_y,
+            list_w,
+            list_h,
+            font_sz,
+            item_h,
+        )
+
+        mc_entries = []
+        flags_l = RT_HALIGN_LEFT | RT_VALIGN_CENTER
+        flags_r = RT_HALIGN_RIGHT | RT_VALIGN_CENTER
+
+        for left_txt, right_txt, color, payload in items:
+            if right_txt:
+                left_w = list_w - right_w - 20
+                entry = [
+                    (left_txt, payload),
+                    MultiContentEntryText(
+                        pos=(10, 0),
+                        size=(left_w, item_h),
+                        font=0,
+                        flags=flags_l,
+                        text=left_txt,
+                        color=color,
+                    ),
+                    MultiContentEntryText(
+                        pos=(list_w - right_w - 10, 0),
+                        size=(right_w, item_h),
+                        font=0,
+                        flags=flags_r,
+                        text=right_txt,
+                        color=color,
+                    ),
+                ]
+            else:
+                entry = [
+                    (left_txt, payload),
+                    MultiContentEntryText(
+                        pos=(10, 0),
+                        size=(list_w - 20, item_h),
+                        font=0,
+                        flags=flags_l,
+                        text=left_txt,
+                        color=color,
+                    ),
+                ]
+            mc_entries.append(entry)
+
+        self["title_text"] = StaticText(title)
+        self["list"] = MenuList(
+            mc_entries,
+            enableWrapAround=True,
+            content=eListboxPythonMultiContent,
+        )
+        self["list"].l.setFont(0, gFont("Regular", font_sz))
+        self["list"].l.setItemHeight(item_h)
+
+        self["actions"] = ActionMap(
+            ["OkCancelActions"],
+            {
+                "ok": self.keyOk,
+                "cancel": self.keyCancel,
+            },
+            -1,
+        )
+
+    def keyOk(self):
+        cur = self["list"].getCurrent()
+        if cur:
+            self.close(cur[0])
+
+    def keyCancel(self):
+        self.close(None)
 
 
 def _state_color(state_txt):
@@ -574,6 +710,7 @@ def _sync_timer_cache_worker():
                         {
                             "box": box,
                             "tag": tag,
+                            "state": state_str,
                             "sref": sref,
                             "raw_sref": raw_sref,
                             "eit": eit_val,
@@ -599,6 +736,50 @@ def sync_timer_cache_async():
         pass
 
 
+def _format_until_time(end_ts):
+    try:
+        dt = datetime.fromtimestamp(int(end_ts))
+        return "REC do: %d:%02d" % (dt.hour, dt.minute)
+    except Exception:
+        return ""
+
+
+def get_local_recording_end_ts(session):
+    now_ts = int(time.time())
+    max_end = 0
+    try:
+        rec_timer = getattr(session.nav, "RecordTimer", None)
+        if rec_timer is not None:
+            for t in list(getattr(rec_timer, "timer_list", [])):
+                if getattr(t, "disabled", False):
+                    continue
+                if str(getattr(t, "state", 0)) == "2":
+                    t_end = int(getattr(t, "end", 0))
+                    if t_end > now_ts and t_end > max_end:
+                        max_end = t_end
+    except Exception:
+        pass
+    return max_end
+
+
+def get_remote_recording_end_ts(box):
+    now_ts = int(time.time())
+    max_end = 0
+    with _CACHE_LOCK:
+        snapshot = list(REMOTE_TIMER_CACHE)
+
+    for t in snapshot:
+        t_box = t.get("box")
+        if not t_box:
+            continue
+        if t_box.get("ip") != box.get("ip") or t_box.get("port") != box.get("port"):
+            continue
+        is_rec = (t.get("state") == "2") or (t["begin"] <= now_ts < t["end"])
+        if is_rec and t["end"] > now_ts and t["end"] > max_end:
+            max_end = t["end"]
+    return max_end
+
+
 def get_epg_marks(service, event_id, begin_time, duration):
     if not service or begin_time is None or duration is None:
         return ""
@@ -614,10 +795,41 @@ def get_epg_marks(service, event_id, begin_time, duration):
     except Exception:
         return ""
 
+    tags = []
+
+    # 1. Kontrola lokalnich casovacu (Tento prijimac)
+    try:
+        nav = getattr(NavigationInstance, "instance", None)
+        rec_timer = getattr(nav, "RecordTimer", None) if nav is not None else None
+        if rec_timer is not None:
+            l_tag = get_local_tag()
+            for t in list(getattr(rec_timer, "timer_list", [])):
+                if getattr(t, "disabled", False):
+                    continue
+                if str(getattr(t, "state", 0)) == "3":
+                    continue
+                t_sref = _normalize_sref(get_sref_string(getattr(t, "service_ref", None)))
+                if t_sref != sref:
+                    continue
+                t_begin = int(getattr(t, "begin", 0))
+                t_end = int(getattr(t, "end", 0))
+                t_eit = int(getattr(t, "eit", 0) or 0)
+                matched = False
+                if eit_val > 0 and t_eit == eit_val and abs(t_begin - b_ts) < 7200:
+                    matched = True
+                elif t_begin <= mid_ts <= t_end:
+                    matched = True
+                if matched:
+                    if l_tag not in tags:
+                        tags.append(l_tag)
+                    break
+    except Exception:
+        pass
+
+    # 2. Kontrola vzdalenych casovacu z cache
     with _CACHE_LOCK:
         snapshot = list(REMOTE_TIMER_CACHE)
 
-    tags = []
     for t in snapshot:
         if t["sref"] != sref:
             continue
@@ -756,11 +968,14 @@ def send_timer_http(
         statetext = _xml_text(root, "e2statetext", "Bez odpovědi")
 
         if state_ok:
+            now_ts = int(time.time())
+            init_state = "2" if (int(begin) <= now_ts < int(end)) else "0"
             with _CACHE_LOCK:
                 REMOTE_TIMER_CACHE.append(
                     {
                         "box": box,
                         "tag": box.get("tag", box["name"][:2].upper()),
+                        "state": init_state,
                         "sref": _normalize_sref(timer_data["sref"]),
                         "raw_sref": timer_data["sref"],
                         "eit": int(timer_data.get("eit") or 0),
@@ -926,28 +1141,58 @@ def open_box_selector(session, event, service, local_callback=None, on_changed_c
         "eit": int(event.getEventId() or 0),
     }
 
-    choices = []
+    # Polozky: (levy_text, pravy_text, barva, payload)
+    items = []
 
     existing_timers = find_matching_timers_for_event(session, service, event)
     for ex in existing_timers:
-        choices.append(
+        items.append(
             (
                 ">>> Zrušit časovač: %s (%s) <<<" % (ex["box_name"], ex["tag"]),
+                "",
+                0x00FFCC33,
                 ("DELETE", ex),
             )
         )
 
     if callable(local_callback):
-        choices.append(("Tento přijímač (%s)" % get_local_tag(), ("LOCAL", None)))
+        local_rec_end = get_local_recording_end_ts(session)
+        local_right = _format_until_time(local_rec_end) if local_rec_end else ""
+        local_color = 0x00FF5555 if local_rec_end else None
+        items.append(
+            (
+                "(%s) Tento přijímač" % get_local_tag(),
+                local_right,
+                local_color,
+                ("LOCAL", None),
+            )
+        )
 
     active_boxes = get_active_boxes()
     for b in active_boxes:
-        choices.append(("%s [%s] (%s)" % (b["name"], b["tag"], b["ip"]), ("BOX", b)))
+        rem_rec_end = get_remote_recording_end_ts(b)
+        rem_right = _format_until_time(rem_rec_end) if rem_rec_end else ""
+        rem_color = 0x00FF5555 if rem_rec_end else None
+        items.append(
+            (
+                "%s [%s] (%s)" % (b["name"], b["tag"], b["ip"]),
+                rem_right,
+                rem_color,
+                ("BOX", b),
+            )
+        )
 
     if not active_boxes:
-        choices.append((">>> Nastavit vzdálené přijímače... <<<", ("SETUP", None)))
+        items.append(
+            (
+                ">>> Nastavit vzdálené přijímače... <<<",
+                "",
+                0x00FFCC33,
+                ("SETUP", None),
+            )
+        )
 
-    title = "Kam nahrát: %s" % timer_data["name"]
+    title = "Čím nahrát: %s" % timer_data["name"]
     session.openWithCallback(
         lambda choice: on_box_selected(
             session,
@@ -956,9 +1201,9 @@ def open_box_selector(session, event, service, local_callback=None, on_changed_c
             local_callback=local_callback,
             on_changed_callback=on_changed_callback,
         ),
-        ChoiceBox,
-        title=title,
-        list=choices,
+        BoxSelectorScreen,
+        title,
+        items,
     )
 
 
