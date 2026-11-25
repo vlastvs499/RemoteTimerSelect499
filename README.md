@@ -59,4 +59,4 @@ killall -9 enigma2
 ## Usage
 * **EPG:** Highlight an event and press **REC** to schedule or cancel a timer on any configured box.
 * **All Timers:** Open **Menu → All Timers** (also available under **Timers**, **Extensions**, and **Plugins**). Press **OK** on a timer to delete it, or select the top banner to bulk-delete finished and failed timers.
-* Tip: If you have multiple receivers, it is recommended to install the plugin on all of them so you can schedule and delete timers across all boxes, depending on which one you are currently using.
+* Tip: If you have multiple receivers, I recommend installing the plugin on all of them so you can schedule and delete timers across all boxes, depending on which one you are currently using.
