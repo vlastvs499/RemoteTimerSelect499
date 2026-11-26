@@ -34,6 +34,7 @@ from Components.config import (
     ConfigSelectionNumber,
     ConfigSubsection,
     ConfigText,
+    ConfigYesNo,
     config,
     configfile,
     getConfigListEntry,
@@ -54,6 +55,7 @@ _EPG_HOOKED = False
 _EPG_LIST_HOOKED = False
 _CACHE_TIMER = None
 _CACHE_LOCK = threading.Lock()
+_ACTIVE_POLL_TIMERS = []
 REMOTE_TIMER_CACHE = []
 
 
@@ -289,7 +291,7 @@ class BoxSelectorScreen(Screen):
             list_y = 80
             list_h = visible_rows * item_h
             win_h = list_y + list_h + 30
-            right_w = 360
+            right_w = 420
             title_font = 32
         else:
             font_sz = 25
@@ -300,7 +302,7 @@ class BoxSelectorScreen(Screen):
             list_y = 58
             list_h = visible_rows * item_h
             win_h = list_y + list_h + 22
-            right_w = 260
+            right_w = 300
             title_font = 22
 
         pos_x = max(20, (desktop_w - win_w) // 2)
@@ -409,6 +411,16 @@ def _state_color(state_txt):
     return colors.get(state_txt, None)
 
 
+def _is_infinite_recording(timer_item):
+    if not isinstance(timer_item, dict):
+        return False
+    if timer_item.get("state") != "2":
+        return False
+    b_ts = int(timer_item.get("begin") or 0)
+    e_ts = int(timer_item.get("end") or 0)
+    return b_ts > 0 and (e_ts - b_ts) >= 82800
+
+
 def _build_banner_entry(payload, text, is_fhd, item_h, color=0x00FFCC33):
     list_w = 1770 if is_fhd else 1190
     flags = RT_HALIGN_LEFT | RT_VALIGN_CENTER
@@ -425,10 +437,13 @@ def _build_banner_entry(payload, text, is_fhd, item_h, color=0x00FFCC33):
     ]
 
 
-def _build_timer_entry(timer_item, is_fhd, item_h):
+def _build_timer_entry(timer_item, is_fhd, item_h, blink_hide=False):
     flags = RT_HALIGN_LEFT | RT_VALIGN_CENTER
     time_txt = timer_item["time_txt"]
-    state_txt = "[%s]" % timer_item["state_txt"] if timer_item.get("state_txt") else ""
+    if blink_hide and _is_infinite_recording(timer_item):
+        state_txt = ""
+    else:
+        state_txt = "[%s]" % timer_item["state_txt"] if timer_item.get("state_txt") else ""
     tag_txt = "[%s]" % timer_item["tag"]
     detail_txt = "%s  |  %s" % (timer_item["sname"], timer_item["name"])
     st_color = _state_color(timer_item.get("state_txt", ""))
@@ -483,6 +498,9 @@ class CombinedTimersScreen(Screen):
     def __init__(self, session, title, rows_spec):
         Screen.__init__(self, session)
         self.setTitle("All Timers")
+        self.rows_spec = rows_spec
+        self._blink_hidden = False
+        self._blink_timer = None
 
         desktop_w = 1920
         try:
@@ -491,6 +509,7 @@ class CombinedTimersScreen(Screen):
             pass
 
         is_fhd = desktop_w >= 1920
+        self.is_fhd = is_fhd
         if is_fhd:
             font_sz = int(TIMER_LIST_FONT_FHD)
             item_h = int(font_sz * 1.42)
@@ -522,13 +541,8 @@ class CombinedTimersScreen(Screen):
                 "</screen>"
             ) % (rows_h, font_sz, item_h)
 
-        mc_entries = []
-        for row_type, payload, text in rows_spec:
-            if row_type == "TIMER":
-                mc_entries.append(_build_timer_entry(payload, is_fhd, item_h))
-            else:
-                b_color = 0x00FF7777 if payload == "OFFLINE_INFO" else 0x00FFCC33
-                mc_entries.append(_build_banner_entry(payload, text, is_fhd, item_h, color=b_color))
+        self.item_h = item_h
+        mc_entries = self._build_entries(blink_hide=False)
 
         self["title_text"] = StaticText(title)
         self["hint_ok"] = StaticText("OK = delete  |")
@@ -555,6 +569,56 @@ class CombinedTimersScreen(Screen):
             },
             -1,
         )
+
+        has_inf_rec = any(
+            row_type == "TIMER" and _is_infinite_recording(payload)
+            for row_type, payload, _text in rows_spec
+        )
+        if has_inf_rec:
+            try:
+                self._blink_timer = eTimer()
+                self._blink_timer.callback.append(self._toggle_blink)
+                self._blink_timer.start(500, False)
+            except Exception:
+                self._blink_timer = None
+
+        self.onClose.append(self._stop_blink_timer)
+
+    def _build_entries(self, blink_hide=False):
+        mc_entries = []
+        for row_type, payload, text in self.rows_spec:
+            if row_type == "TIMER":
+                mc_entries.append(
+                    _build_timer_entry(
+                        payload, self.is_fhd, self.item_h, blink_hide=blink_hide
+                    )
+                )
+            else:
+                b_color = 0x00FF7777 if payload == "OFFLINE_INFO" else 0x00FFCC33
+                mc_entries.append(
+                    _build_banner_entry(
+                        payload, text, self.is_fhd, self.item_h, color=b_color
+                    )
+                )
+        return mc_entries
+
+    def _toggle_blink(self):
+        try:
+            self._blink_hidden = not self._blink_hidden
+            idx = self["list"].getSelectedIndex()
+            self["list"].setList(self._build_entries(blink_hide=self._blink_hidden))
+            if idx is not None and idx >= 0:
+                self["list"].moveToIndex(idx)
+        except Exception:
+            pass
+
+    def _stop_blink_timer(self):
+        if self._blink_timer is not None:
+            try:
+                self._blink_timer.stop()
+            except Exception:
+                pass
+            self._blink_timer = None
 
     def keyOk(self):
         cur = self["list"].getCurrent()
@@ -589,10 +653,12 @@ class RemoteTimerMarginScreen(ConfigListScreen, Screen):
 
         self.cfg_before = ConfigSelectionNumber(0, 120, 1, default=val_before)
         self.cfg_after = ConfigSelectionNumber(0, 180, 1, default=val_after)
+        self.cfg_infinite = ConfigYesNo(default=False)
 
         self.list = [
             getConfigListEntry("Margin before event (min)", self.cfg_before),
             getConfigListEntry("Margin after event (min)", self.cfg_after),
+            getConfigListEntry("Infinite recording", self.cfg_infinite),
         ]
 
         ConfigListScreen.__init__(self, self.list, session=session)
@@ -610,7 +676,13 @@ class RemoteTimerMarginScreen(ConfigListScreen, Screen):
         )
 
     def keySave(self):
-        self.close((int(self.cfg_before.value), int(self.cfg_after.value)))
+        self.close(
+            (
+                int(self.cfg_before.value),
+                int(self.cfg_after.value),
+                bool(self.cfg_infinite.value),
+            )
+        )
 
     def keyCancel(self):
         self.close(None)
@@ -664,12 +736,12 @@ def get_default_margins_minutes():
     return margin_before, margin_after
 
 
-def fetch_remote_dirname(box):
+def fetch_remote_dirname(box, timeout=10):
     for endpoint in ("/web/getcurrlocation", "/web/getlocations"):
         try:
             url = "http://%s:%d%s" % (box["ip"], box["port"], endpoint)
             req = _build_request(box, url)
-            with urllib.request.urlopen(req, timeout=4) as resp:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
                 xml_data = resp.read()
             root = ET.fromstring(xml_data)
             for loc in root.findall("e2location"):
@@ -738,8 +810,24 @@ def sync_timer_cache_async():
 
 def _format_until_time(end_ts):
     try:
+        if int(end_ts) < 0:
+            return "REC until: \u221e"
         dt = datetime.fromtimestamp(int(end_ts))
         return "REC until: %d:%02d" % (dt.hour, dt.minute)
+    except Exception:
+        return ""
+
+
+def _format_plan_in_minutes(begin_ts):
+    try:
+        now_ts = int(time.time())
+        diff = int(begin_ts) - now_ts
+        if diff <= 0 or diff >= 100 * 60:
+            return ""
+        mins = max(1, (diff + 59) // 60)
+        if mins >= 100:
+            return ""
+        return "Plan. REC in: %d min" % mins
     except Exception:
         return ""
 
@@ -754,12 +842,36 @@ def get_local_recording_end_ts(session):
                 if getattr(t, "disabled", False):
                     continue
                 if str(getattr(t, "state", 0)) == "2":
+                    t_begin = int(getattr(t, "begin", 0))
                     t_end = int(getattr(t, "end", 0))
-                    if t_end > now_ts and t_end > max_end:
-                        max_end = t_end
+                    if t_end > now_ts:
+                        if t_begin > 0 and (t_end - t_begin) >= 82800:
+                            return -1
+                        if t_end > max_end:
+                            max_end = t_end
     except Exception:
         pass
     return max_end
+
+
+def get_local_next_timer_begin_ts(session):
+    now_ts = int(time.time())
+    min_begin = 0
+    try:
+        rec_timer = getattr(session.nav, "RecordTimer", None)
+        if rec_timer is not None:
+            for t in list(getattr(rec_timer, "timer_list", [])):
+                if getattr(t, "disabled", False):
+                    continue
+                if str(getattr(t, "state", 0)) in ("2", "3"):
+                    continue
+                t_begin = int(getattr(t, "begin", 0))
+                if t_begin > now_ts:
+                    if min_begin == 0 or t_begin < min_begin:
+                        min_begin = t_begin
+    except Exception:
+        pass
+    return min_begin
 
 
 def get_remote_recording_end_ts(box):
@@ -775,9 +887,33 @@ def get_remote_recording_end_ts(box):
         if t_box.get("ip") != box.get("ip") or t_box.get("port") != box.get("port"):
             continue
         is_rec = (t.get("state") == "2") or (t["begin"] <= now_ts < t["end"])
-        if is_rec and t["end"] > now_ts and t["end"] > max_end:
-            max_end = t["end"]
+        if is_rec and t["end"] > now_ts:
+            if t["begin"] > 0 and (t["end"] - t["begin"]) >= 82800:
+                return -1
+            if t["end"] > max_end:
+                max_end = t["end"]
     return max_end
+
+
+def get_remote_next_timer_begin_ts(box):
+    now_ts = int(time.time())
+    min_begin = 0
+    with _CACHE_LOCK:
+        snapshot = list(REMOTE_TIMER_CACHE)
+
+    for t in snapshot:
+        t_box = t.get("box")
+        if not t_box:
+            continue
+        if t_box.get("ip") != box.get("ip") or t_box.get("port") != box.get("port"):
+            continue
+        if t.get("state") in ("2", "3"):
+            continue
+        t_begin = int(t.get("begin", 0))
+        if t_begin > now_ts:
+            if min_begin == 0 or t_begin < min_begin:
+                min_begin = t_begin
+    return min_begin
 
 
 def get_epg_marks(service, event_id, begin_time, duration):
@@ -933,88 +1069,163 @@ def find_matching_timers_for_event(session, service, event):
 
 
 def send_timer_http(
-    session, box, timer_data, margin_before_min, margin_after_min, on_changed_callback=None
+    session,
+    box,
+    timer_data,
+    margin_before_min,
+    margin_after_min,
+    infinite=False,
+    on_changed_callback=None,
 ):
+    now_ts = int(time.time())
     begin = int(timer_data["raw_begin"]) - (int(margin_before_min) * 60)
-    end = int(timer_data["raw_end"]) + (int(margin_after_min) * 60)
+    if infinite:
+        end = max(begin, now_ts) + 86400
+    else:
+        end = int(timer_data["raw_end"]) + (int(margin_after_min) * 60)
 
-    remote_dir = fetch_remote_dirname(box)
-    url_base = "http://%s:%d/web/timeradd?" % (box["ip"], box["port"])
+    state = {"done": False, "ok": False, "msg": ""}
 
-    params = {
-        "sRef": timer_data["sref"],
-        "begin": str(begin),
-        "end": str(end),
-        "name": timer_data["name"],
-        "description": timer_data["desc"],
-        "eit": str(timer_data["eit"]),
-        "disabled": "0",
-        "justplay": "0",
-        "afterevent": "3",
-    }
-
-    if remote_dir:
-        params["dirname"] = remote_dir
-
-    url = url_base + urllib.parse.urlencode(params)
-    req = _build_request(box, url)
-
-    try:
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            xml_data = resp.read()
-
-        root = ET.fromstring(xml_data)
-        state_ok = _xml_text(root, "e2state").lower() == "true"
-        statetext = _xml_text(root, "e2statetext", "No response")
-
-        if state_ok:
-            now_ts = int(time.time())
-            init_state = "2" if (int(begin) <= now_ts < int(end)) else "0"
-            with _CACHE_LOCK:
-                REMOTE_TIMER_CACHE.append(
-                    {
-                        "box": box,
-                        "tag": box.get("tag", box["name"][:2].upper()),
-                        "state": init_state,
-                        "sref": _normalize_sref(timer_data["sref"]),
-                        "raw_sref": timer_data["sref"],
-                        "eit": int(timer_data.get("eit") or 0),
-                        "begin": int(begin),
-                        "end": int(end),
-                        "name": timer_data["name"],
-                    }
-                )
-            if callable(on_changed_callback):
-                on_changed_callback()
+    def _show_result(_res=None):
+        if state["ok"] and callable(on_changed_callback):
             try:
-                auto_cleanup_old_timers(box)
+                on_changed_callback()
             except Exception:
                 pass
-            sync_timer_cache_async()
+        msg_type = MessageBox.TYPE_INFO if state["ok"] else MessageBox.TYPE_ERROR
+        timeout_sec = 6 if state["ok"] else 8
+        try:
+            session.open(MessageBox, state["msg"], msg_type, timeout=timeout_sec)
+        except Exception:
+            try:
+                from Tools import Notifications
+                Notifications.AddNotification(
+                    MessageBox, state["msg"], type=msg_type, timeout=timeout_sec
+                )
+            except Exception:
+                pass
 
-            dir_info = remote_dir if remote_dir else "default"
-            msg = "Timer added on %s (-%d / +%d min):\n%s\nPath: %s\n\n(%s)" % (
-                box["name"],
-                margin_before_min,
-                margin_after_min,
-                timer_data["name"],
-                dir_info,
-                statetext,
-            )
-            session.open(MessageBox, msg, MessageBox.TYPE_INFO, timeout=6)
-        else:
-            msg = "Box %s rejected the timer:\n%s" % (box["name"], statetext)
-            session.open(MessageBox, msg, MessageBox.TYPE_ERROR, timeout=8)
+    wait_dlg = None
+    try:
+        wait_dlg = session.openWithCallback(
+            _show_result,
+            MessageBox,
+            "Connecting (spinning up disk)...\n(%s)" % box["name"],
+            MessageBox.TYPE_INFO,
+            enable_input=False,
+        )
+    except Exception:
+        wait_dlg = None
 
-    except urllib.error.HTTPError as e:
-        msg = "HTTP error on %s (%s): %s" % (box["name"], box["ip"], e.code)
-        session.open(MessageBox, msg, MessageBox.TYPE_ERROR, timeout=8)
-    except urllib.error.URLError as e:
-        msg = "Cannot connect to %s (%s):\n%s" % (box["name"], box["ip"], e.reason)
-        session.open(MessageBox, msg, MessageBox.TYPE_ERROR, timeout=8)
-    except Exception as e:
-        msg = "Unexpected error (%s):\n%s" % (box["name"], str(e))
-        session.open(MessageBox, msg, MessageBox.TYPE_ERROR, timeout=8)
+    def _worker():
+        try:
+            remote_dir = fetch_remote_dirname(box, timeout=10)
+            url_base = "http://%s:%d/web/timeradd?" % (box["ip"], box["port"])
+
+            params = {
+                "sRef": timer_data["sref"],
+                "begin": str(begin),
+                "end": str(end),
+                "name": timer_data["name"],
+                "description": timer_data["desc"],
+                "eit": str(timer_data["eit"]),
+                "disabled": "0",
+                "justplay": "0",
+                "afterevent": "3",
+            }
+
+            if remote_dir:
+                params["dirname"] = remote_dir
+
+            url = url_base + urllib.parse.urlencode(params)
+            req = _build_request(box, url)
+
+            with urllib.request.urlopen(req, timeout=20) as resp:
+                xml_data = resp.read()
+
+            root = ET.fromstring(xml_data)
+            state_ok = _xml_text(root, "e2state").lower() == "true"
+            statetext = _xml_text(root, "e2statetext", "No response")
+
+            if state_ok:
+                cur_ts = int(time.time())
+                init_state = "2" if (int(begin) <= cur_ts < int(end)) else "0"
+                with _CACHE_LOCK:
+                    REMOTE_TIMER_CACHE.append(
+                        {
+                            "box": box,
+                            "tag": box.get("tag", box["name"][:2].upper()),
+                            "state": init_state,
+                            "sref": _normalize_sref(timer_data["sref"]),
+                            "raw_sref": timer_data["sref"],
+                            "eit": int(timer_data.get("eit") or 0),
+                            "begin": int(begin),
+                            "end": int(end),
+                            "name": timer_data["name"],
+                        }
+                    )
+                try:
+                    auto_cleanup_old_timers(box)
+                except Exception:
+                    pass
+                sync_timer_cache_async()
+
+                dir_info = remote_dir if remote_dir else "default"
+                if infinite:
+                    margin_info = "-%d min / infinite (\u221e)" % margin_before_min
+                else:
+                    margin_info = "-%d / +%d min" % (margin_before_min, margin_after_min)
+                state["ok"] = True
+                state["msg"] = "Timer added on %s (%s):\n%s\nPath: %s\n\n(%s)" % (
+                    box["name"],
+                    margin_info,
+                    timer_data["name"],
+                    dir_info,
+                    statetext,
+                )
+            else:
+                state["ok"] = False
+                state["msg"] = "Box %s rejected the timer:\n%s" % (box["name"], statetext)
+
+        except urllib.error.HTTPError as e:
+            state["ok"] = False
+            state["msg"] = "HTTP error on %s (%s): %s" % (box["name"], box["ip"], e.code)
+        except urllib.error.URLError as e:
+            state["ok"] = False
+            state["msg"] = "Cannot connect to %s (%s):\n%s" % (box["name"], box["ip"], e.reason)
+        except Exception as e:
+            state["ok"] = False
+            state["msg"] = "Unexpected error (%s):\n%s" % (box["name"], str(e))
+        finally:
+            state["done"] = True
+
+    poll_timer = eTimer()
+    _ACTIVE_POLL_TIMERS.append(poll_timer)
+
+    def _check_done():
+        if not state["done"]:
+            return
+        try:
+            poll_timer.stop()
+        except Exception:
+            pass
+        try:
+            _ACTIVE_POLL_TIMERS.remove(poll_timer)
+        except Exception:
+            pass
+        if wait_dlg is not None:
+            try:
+                wait_dlg.close()
+                return
+            except Exception:
+                pass
+        _show_result()
+
+    poll_timer.callback.append(_check_done)
+    poll_timer.start(150, False)
+
+    t = threading.Thread(target=_worker, daemon=True)
+    t.start()
 
 
 def delete_timer_from_epg(session, timer_item, on_changed_callback=None):
@@ -1089,13 +1300,14 @@ def on_box_selected(session, choice, timer_data, local_callback=None, on_changed
     def on_margins_confirmed(margins):
         if margins is None:
             return
-        m_before, m_after = margins
+        m_before, m_after, is_infinite = margins
         send_timer_http(
             session,
             box,
             timer_data,
             m_before,
             m_after,
+            infinite=is_infinite,
             on_changed_callback=on_changed_callback,
         )
 
@@ -1157,8 +1369,13 @@ def open_box_selector(session, event, service, local_callback=None, on_changed_c
 
     if callable(local_callback):
         local_rec_end = get_local_recording_end_ts(session)
-        local_right = _format_until_time(local_rec_end) if local_rec_end else ""
-        local_color = 0x00FF5555 if local_rec_end else None
+        if local_rec_end:
+            local_right = _format_until_time(local_rec_end)
+            local_color = 0x00FF5555
+        else:
+            local_next = get_local_next_timer_begin_ts(session)
+            local_right = _format_plan_in_minutes(local_next) if local_next else ""
+            local_color = 0x00FFDD33 if local_right else None
         items.append(
             (
                 "(%s) This receiver" % get_local_tag(),
@@ -1171,8 +1388,13 @@ def open_box_selector(session, event, service, local_callback=None, on_changed_c
     active_boxes = get_active_boxes()
     for b in active_boxes:
         rem_rec_end = get_remote_recording_end_ts(b)
-        rem_right = _format_until_time(rem_rec_end) if rem_rec_end else ""
-        rem_color = 0x00FF5555 if rem_rec_end else None
+        if rem_rec_end:
+            rem_right = _format_until_time(rem_rec_end)
+            rem_color = 0x00FF5555
+        else:
+            rem_next = get_remote_next_timer_begin_ts(b)
+            rem_right = _format_plan_in_minutes(rem_next) if rem_next else ""
+            rem_color = 0x00FFDD33 if rem_right else None
         items.append(
             (
                 "%s [%s] (%s)" % (b["name"], b["tag"], b["ip"]),
@@ -1236,6 +1458,8 @@ def _is_finished_or_failed(timer_item, now_ts):
 def _format_time_range(begin_ts, end_ts):
     try:
         dt_begin = datetime.fromtimestamp(begin_ts)
+        if begin_ts > 0 and end_ts > begin_ts and (end_ts - begin_ts) >= 82800:
+            return "%s-  \u221e" % dt_begin.strftime("%d.%m %H:%M")
         dt_end = datetime.fromtimestamp(end_ts)
         return "%s-%s" % (dt_begin.strftime("%d.%m %H:%M"), dt_end.strftime("%H:%M"))
     except Exception:
