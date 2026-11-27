@@ -14,13 +14,14 @@ Plánujte, prohlížejte a spravujte časovače na svém lokálním přijímači
 * **Značky časovačů přímo v EPG:** Naplánované pořady jsou v seznamu EPG automaticky označeny vlastní značkou přijímače, který bude záznam provádět (např. `[L]`, `[M]`, `[V]`). Ta se nastavuje v nastavení, kde se zadávají vzdálené přijímače v MENU/Časovače/Nastavení vzdálených časovačů. Toto nastavení je i v seznamu pluginů.
 
 * **Souhrnná obrazovka Všechny časovače:** Zobrazuje všechny lokální i vzdálené časovače v jednom chronologicky seřazeném přehledu (`Datum a čas` → `Stav` → `Značka` → `Kanál | Pořad`) s barevným stavem, symbolem `∞` a blikající indikací `[Nahrává]` u běžících nekonečných nahrávek. V OpenATV je vhodné si tuto položku posunout na první obrazovce nahoru (najet na položku Všechny časovače - modrým povolit úpravy, pak stisk zeleného a posunout nahoru. Pak znovu zelené tlačítko, pak modré, hotovo).
-* 
+
 * **Rychlá změna konce nahrávání:** Stisknutím **MODRÉHO** tlačítka ve *Všechny časovače* upravíte čas konce probíhajícího nebo čekajícího časovače (`±1 min` / `±5 min`) včetně ochrany proti kolizi (1 minuta bezpečnostní rezervy před dalším čekajícím časovačem na stejném přijímači). Pokud se tedy konec vámi nataženého času přiblíží dalšímu plánovanému záznamu, další natažení času se zablokuje.
 
 * **Zastavení i smazání nahrávky:** V seznamu Všechny časovače stiskem **ČERVENÉHO** tlačítka na běžícím nahrávání vyberete **STOP REC** nebo **STOP REC & SMAZAT NAHRÁVKU** (zastaví nahrávání a smaže časovač i soubor z disku). Také tlačítko OK je možné zastavt nahrávání a smazat časovač, ovšem nikoli záznam.
 
 * **Dynamická cesta a podpora uspaných disků:** Automaticky zjišťuje aktivní složku pro nahrávání na vzdáleném boxu a odesílání časovače řeší na pozadí s prodlouženým časovým limitem, takže se uspaný HDD roztočí bez timeoutů a zamrzání (plně kompatibilní s OpenATV 8.0).
-* Pro usnadnění cesty k záznamu a její jednoduché změně nahrává vzdálený časovač do složky záznamů, ve které právě je. Je to nejrychlejší varianta, jak změnit cestu do složky, kam chceme, aby nahrával. Pokud si nastavíte složku 1 pro první záznam a pak ji pro jiný záznam změníte, nebude se nahrávat do poslední nastavené složky, ale do první půjde první záznam a do druhé druhý. Cesty tedy zůstávají zachovány.
+* Pro usnadnění cesty k záznamu a její jednoduché změně nahrává vzdálený časovač do složky záznamů, ve které vzdálený přijímač právě je. Je to nejrychlejší varianta, jak změnit cestu do složky, kam chceme, aby nahrával. Pokud si nastavíte složku 1 pro první záznam a pak ji pro jiný záznam změníte, nebude se nahrávat do poslední nastavené složky, ale do první půjde první záznam a do druhé druhý. Cesty tedy zůstávají zachovány.
+Ve výběru přijímače v položce Posun času je možné měnit tuto složku na globání - to je složka, kterou má přijímač zadanou pro nahrávání v openatv-
 
 * **Nastavení ovladačem a automatický úklid:** Konfigurace až 4 vzdálených boxů přímo v přijímači (ukládá se do `/etc/enigma2/settings`) s automatickým i hromadným mazáním hotových a selhaných časovačů.
 
@@ -85,7 +86,6 @@ killall -9 enigma2
 ## Používání
 
 * **EPG:** Najeďte na libovolný pořad a stiskněte **REC** pro naplánování nebo zrušení časovače na kterémkoli nastaveném boxu.
-* **Okamžité nahrávání (volitelné):** Je-li funkce povolena v nastavení partnerských boxů, stisknutím tlačítka **REC** se otevře výběr tohoto pluginu s nabídkou vzdálených boxů. Při nepovolení položky **„Výběr boxu tlačítkem REC (živé TV)“** se nabídka boxů neotevře a přijímač se bude chovat v OpenATV klasicky.
 * **Všechny časovače (`Menu → Všechny časovače`):**
   * **OK:** Smazání vybraného časovače, i když právě probíhá - smaže se časovač a nahrávání, ne samotný záznam (je možné i hromadné smazání všech hotových a selhaných přes horní lištu).
   * **ČERVENÁ:** Zastavení probíhajícího nahrávání (**STOP REC** nebo **STOP REC & SMAZAT NAHRÁVKU**).
