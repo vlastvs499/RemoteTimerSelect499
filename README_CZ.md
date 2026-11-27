@@ -101,3 +101,5 @@ killall -9 enigma2
 * **Nekonečné nahrávání a blikající indikace:** Přidána volba *Nekonečné nahrávání* (24 hod.), zarovnaný symbol **`∞`** a blikající stav `[Nahrává]` (1× za sekundu) ve *Všech časovačích*.
 * **Žluté upozornění na brzké plánované nahrávání:** Přijímače s naplánovaným časovačem do 100 minut se ve výběru zvýrazňují **žlutě** (`Plán. REC za: X min`).
 * **Podpora roztáčení uspaných disků:** Odesílání vzdáleného časovače probíhá na pozadí s prodlouženým timeoutem a hláškou *Připojuji (roztáčím) disk...*, aby nedocházelo k zamrzání nebo chybám při probouzení disku.
+
+Upozornění: pokud se vám přijímač po pár hodinách běhu zpomalí, nebo zcela zasekne, máte na některém vzdáleném boxu 2 stejná připojení na jeden disk (můj případ). Jedno připojení smažte.
