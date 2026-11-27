@@ -120,4 +120,8 @@ killall -9 enigma2
 
 * ### 2026-11-27
 - Defined REC button behavior when enabled in Remote Timer Settings.
+- ### 27.11.2026
+- Defined REC button behavior when the REC button box selector is enabled in Remote Timer Settings (unified margins & recording path selection).
+- Added the option to select the recording destination between the system default folder and the currently active folder.
+- Fixed **Stop REC** (RED button) when stopping a local recording with the REC button option enabled in Remote Timer Settings.
 - Fixed Stop REC when stopping a local recording with the REC button option enabled in Remote Timer Settings.
