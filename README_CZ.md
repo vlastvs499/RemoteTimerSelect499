@@ -76,7 +76,7 @@ killall -9 enigma2
    * **Pluginy → Vzdálené časovače - nastavení**
    * 
 2. Nastavte jednotlivé položky:
-   * **Označení tohoto přijímače** (max. 2 znaky, výchozí: `L`) -dva znaky záměrně - obecně je ideální dávat krátké názvy - budou se totiž zobrazovat v EPG před naplánovaným nahráváním.
+   * **Označení lokálního (hlavního) přijímače** (max. 2 znaky, výchozí: `L`) - dva znaky záměrně - obecně je ideální dávat krátké názvy, nejlépe znak jeden - budou se totiž zobrazovat v EPG před naplánovaným nahráváním.
    *    * **Auto-mazání hotových/selhaných (dny)** (`0` = vypnuto)
    * **Výběr boxu tlačítkem REC (živé TV)** (`Ne` = klasické chování tlačítka nahrávání OpenATV bez možnosti výběru přijímačů, `Ano` = při stisku REC se zobrazí výběr přijímačů). Při výběru z EPG je výběr přijímačů k dispozici vždy.
    * **Až 4 vzdálené boxy:** stiskem **OK** na textových polích otevřete virtuální klávesnici, IP adresy zadávejte číselnými tlačítky (`0–9`, nepoužité sloty nechte na `0.0.0.0`), výchozí port OpenWebif je `80`.
