@@ -31,6 +31,7 @@ from Components.config import (
     ConfigIP,
     ConfigInteger,
     ConfigPassword,
+    ConfigSelection,
     ConfigSelectionNumber,
     ConfigSubsection,
     ConfigText,
@@ -59,6 +60,7 @@ _CACHE_TIMER = None
 _CACHE_LOCK = threading.Lock()
 _ACTIVE_POLL_TIMERS = []
 REMOTE_TIMER_CACHE = []
+REMOTE_LOCATIONS_CACHE = {}
 
 
 def init_plugin_config():
@@ -176,7 +178,7 @@ class RemoteTimerSetupScreen(ConfigListScreen, Screen):
             ),
             (
                 getConfigListEntry("Výběr boxu tlačítkem REC (živé TV)", cfg.live_rec_selector),
-                "Při stisku REC při sledování TV otevře výběr přijímače (Tento přijímač = původní nabídka OpenATV).",
+                "Při stisku REC při sledování TV otevře výběr přijímače (vypnuto = klasické chování OpenATV).",
             ),
         ]
 
@@ -798,15 +800,91 @@ class ChangeTimerEndScreen(Screen):
 
 
 class RemoteTimerMarginScreen(ConfigListScreen, Screen):
-    def __init__(self, session, box, timer_data, default_before, default_after):
+    def __init__(self, session, box, timer_data, default_before, default_after, existing_timer=None):
         Screen.__init__(self, session)
-        self.skinName = ["Setup"]
-        self.setTitle("Posun času (%s)" % box["name"])
+        self.existing_timer = existing_timer
+        box_title = box["name"] if box is not None else "Tento přijímač"
+        win_title = "Posun času (%s)" % box_title
+        self.setTitle(win_title)
 
-        self["key_red"] = StaticText("Zrušit")
-        self["key_green"] = StaticText("Nahrát")
-        self["footnote"] = StaticText("")
-        self["description"] = StaticText(timer_data["name"])
+        desktop_w = 1920
+        desktop_h = 1080
+        try:
+            sz = getDesktop(0).size()
+            desktop_w = sz.width()
+            desktop_h = sz.height()
+        except Exception:
+            pass
+
+        is_fhd = desktop_w >= 1920
+        if is_fhd:
+            win_w, win_h = 1360, 620
+            pad_x = 35
+            inner_w = win_w - (2 * pad_x)
+            self.skin = (
+                '<screen name="RemoteTimerMarginScreen" position="%d,%d" size="%d,%d" title="%s">'
+                '<widget source="title_lbl" render="Label" position="%d,20" size="%d,48" font="Regular;34" foregroundColor="#00ffcc33" noWrap="1" />'
+                '<widget source="event_lbl" render="Label" position="%d,72" size="%d,40" font="Regular;28" foregroundColor="#00ffffff" noWrap="1" />'
+                '<widget name="config" position="%d,125" size="%d,220" font="Regular;30" itemHeight="52" scrollbarMode="showOnDemand" enableWrapAround="1" />'
+                '<widget source="description" render="Label" position="%d,365" size="%d,175" font="Regular;26" foregroundColor="#00dddddd" />'
+                '<widget source="key_red" render="Label" position="%d,555" size="270,42" font="Regular;28" foregroundColor="#00ff5555" noWrap="1" />'
+                '<widget source="key_green" render="Label" position="%d,555" size="240,42" font="Regular;28" foregroundColor="#0055ff55" noWrap="1" />'
+                '<widget source="footnote" render="Label" position="%d,558" size="%d,38" font="Regular;24" foregroundColor="#00aaaaaa" halign="right" noWrap="1" />'
+                "</screen>"
+            ) % (
+                max(20, (desktop_w - win_w) // 2),
+                max(20, (desktop_h - win_h) // 2),
+                win_w,
+                win_h,
+                win_title.replace('"', "&quot;"),
+                pad_x, inner_w,
+                pad_x, inner_w,
+                pad_x, inner_w,
+                pad_x, inner_w,
+                pad_x,
+                pad_x + 280,
+                pad_x + 530, inner_w - 530,
+            )
+        else:
+            win_w, win_h = 960, 440
+            pad_x = 24
+            inner_w = win_w - (2 * pad_x)
+            self.skin = (
+                '<screen name="RemoteTimerMarginScreen" position="%d,%d" size="%d,%d" title="%s">'
+                '<widget source="title_lbl" render="Label" position="%d,14" size="%d,34" font="Regular;24" foregroundColor="#00ffcc33" noWrap="1" />'
+                '<widget source="event_lbl" render="Label" position="%d,50" size="%d,28" font="Regular;20" foregroundColor="#00ffffff" noWrap="1" />'
+                '<widget name="config" position="%d,88" size="%d,156" font="Regular;21" itemHeight="38" scrollbarMode="showOnDemand" enableWrapAround="1" />'
+                '<widget source="description" render="Label" position="%d,258" size="%d,125" font="Regular;18" foregroundColor="#00dddddd" />'
+                '<widget source="key_red" render="Label" position="%d,394" size="190,30" font="Regular;20" foregroundColor="#00ff5555" noWrap="1" />'
+                '<widget source="key_green" render="Label" position="%d,394" size="170,30" font="Regular;20" foregroundColor="#0055ff55" noWrap="1" />'
+                '<widget source="footnote" render="Label" position="%d,396" size="%d,28" font="Regular;17" foregroundColor="#00aaaaaa" halign="right" noWrap="1" />'
+                "</screen>"
+            ) % (
+                max(20, (desktop_w - win_w) // 2),
+                max(20, (desktop_h - win_h) // 2),
+                win_w,
+                win_h,
+                win_title.replace('"', "&quot;"),
+                pad_x, inner_w,
+                pad_x, inner_w,
+                pad_x, inner_w,
+                pad_x, inner_w,
+                pad_x,
+                pad_x + 200,
+                pad_x + 380, inner_w - 380,
+            )
+
+        self["title_lbl"] = StaticText(win_title)
+        self["event_lbl"] = StaticText(timer_data["name"])
+        red_label = "ČERVENÁ = Stop REC" if self.existing_timer is not None else "ČERVENÁ = Zrušit"
+        self["key_red"] = StaticText(red_label)
+        self["key_green"] = StaticText("ZELENÁ = Nahrát")
+        self["footnote"] = StaticText("VLEVO/VPRAVO = změna  |  OK = nahrát")
+        self["description"] = StaticText(
+            "Pokud jste v seznamu záznamů v jiné složce, než je zadána jako výchozí pro záznam, "
+            "na posledním řádku máte možnost okamžité změny složky pro záznam šipkami doleva/doprava. "
+            "Vždy je k dispozici výchozí složka, nebo ta, ve které aktuálně jste."
+        )
 
         val_before = max(0, min(120, int(default_before)))
         val_after = max(0, min(180, int(default_after)))
@@ -815,22 +893,44 @@ class RemoteTimerMarginScreen(ConfigListScreen, Screen):
         self.cfg_after = ConfigSelectionNumber(0, 180, 1, default=val_after)
         self.cfg_infinite = ConfigYesNo(default=False)
 
+        if box is None:
+            local_locs = get_local_locations_list()
+            if local_locs:
+                loc_choices = [(p, p) for p in local_locs]
+            else:
+                loc_choices = [("", "Výchozí cesta přijímače")]
+        else:
+            cached_locs = get_cached_remote_locations(box)
+            if cached_locs:
+                loc_choices = [(p, p) for p in cached_locs]
+            else:
+                loc_choices = [("", "Automaticky (aktuální na boxu)")]
+                sync_timer_cache_async()
+        self.cfg_dirname = ConfigSelection(default=loc_choices[0][0], choices=loc_choices)
+
         self.list = [
             getConfigListEntry("Posun před pořadem (min)", self.cfg_before),
             getConfigListEntry("Posun za pořadem (min)", self.cfg_after),
             getConfigListEntry("Nekonečné nahrávání", self.cfg_infinite),
+            getConfigListEntry("Cesta pro záznam", self.cfg_dirname),
         ]
 
         ConfigListScreen.__init__(self, self.list, session=session)
 
+        # Vyssi priorita (-3) pro barevna tlacitka, aby RED nesezralo SetupActions/cancel
+        self["color_actions"] = ActionMap(
+            ["ColorActions"],
+            {
+                "green": self.keySave,
+                "red": self.keyRed,
+            },
+            -3,
+        )
         self["actions"] = ActionMap(
-            ["SetupActions", "ColorActions"],
+            ["OkCancelActions"],
             {
                 "ok": self.keySave,
-                "save": self.keySave,
-                "green": self.keySave,
                 "cancel": self.keyCancel,
-                "red": self.keyCancel,
             },
             -2,
         )
@@ -841,8 +941,15 @@ class RemoteTimerMarginScreen(ConfigListScreen, Screen):
                 int(self.cfg_before.value),
                 int(self.cfg_after.value),
                 bool(self.cfg_infinite.value),
+                str(self.cfg_dirname.value or ""),
             )
         )
+
+    def keyRed(self):
+        if self.existing_timer is not None:
+            self.close(("DELETE_EXISTING", self.existing_timer))
+        else:
+            self.close(None)
 
     def keyCancel(self):
         self.close(None)
@@ -896,6 +1003,78 @@ def get_default_margins_minutes():
     return margin_before, margin_after
 
 
+def get_local_locations_list():
+    locations = []
+
+    def _add_path(p):
+        if not p:
+            return
+        s = str(p).strip()
+        if not s or not s.startswith("/"):
+            return
+        if not s.endswith("/"):
+            s += "/"
+        if s not in locations:
+            locations.append(s)
+
+    try:
+        if hasattr(config, "movielist") and hasattr(config.movielist, "last_videodir"):
+            _add_path(config.movielist.last_videodir.value)
+    except Exception:
+        pass
+
+    try:
+        if hasattr(config, "usage") and hasattr(config.usage, "default_path"):
+            _add_path(config.usage.default_path.value)
+    except Exception:
+        pass
+
+    try:
+        if hasattr(config, "usage") and hasattr(config.usage, "timer_path"):
+            _add_path(config.usage.timer_path.value)
+    except Exception:
+        pass
+
+    try:
+        if hasattr(config, "movielist") and hasattr(config.movielist, "videodirs"):
+            vdirs = config.movielist.videodirs.value
+            if isinstance(vdirs, (list, tuple)):
+                for d in vdirs:
+                    _add_path(d)
+    except Exception:
+        pass
+
+    if not locations:
+        _add_path("/media/hdd/movie/")
+
+    return locations
+
+
+def fetch_remote_locations_list(box, timeout=4):
+    locations = []
+    for endpoint in ("/web/getcurrlocation", "/web/getlocations"):
+        try:
+            url = "http://%s:%d%s" % (box["ip"], box["port"], endpoint)
+            req = _build_request(box, url)
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                xml_data = resp.read()
+            root = ET.fromstring(xml_data)
+            for loc in root.findall("e2location"):
+                if loc.text and loc.text.strip():
+                    path = loc.text.strip()
+                    if path not in locations:
+                        locations.append(path)
+        except Exception:
+            pass
+    return locations
+
+
+def get_cached_remote_locations(box):
+    key = (box.get("ip", ""), int(box.get("port", 80)))
+    with _CACHE_LOCK:
+        return list(REMOTE_LOCATIONS_CACHE.get(key, []))
+
+
 def fetch_remote_dirname(box, timeout=10):
     for endpoint in ("/web/getcurrlocation", "/web/getlocations"):
         try:
@@ -915,6 +1094,7 @@ def fetch_remote_dirname(box, timeout=10):
 def _sync_timer_cache_worker():
     global REMOTE_TIMER_CACHE
     new_items = []
+    new_locations = {}
     for box in get_active_boxes():
         try:
             url = "http://%s:%d/web/timerlist" % (box["ip"], box["port"])
@@ -956,8 +1136,17 @@ def _sync_timer_cache_worker():
         except Exception:
             pass
 
+        try:
+            locs = fetch_remote_locations_list(box, timeout=4)
+            if locs:
+                new_locations[(box["ip"], int(box["port"]))] = locs
+        except Exception:
+            pass
+
     with _CACHE_LOCK:
         REMOTE_TIMER_CACHE = new_items
+        for k, v in new_locations.items():
+            REMOTE_LOCATIONS_CACHE[k] = v
 
 
 def sync_timer_cache_async():
@@ -1228,6 +1417,95 @@ def find_matching_timers_for_event(session, service, event):
     return matches
 
 
+def add_local_timer(
+    session,
+    timer_data,
+    margin_before_min,
+    margin_after_min,
+    infinite=False,
+    selected_dirname="",
+    on_changed_callback=None,
+):
+    now_ts = int(time.time())
+    begin = int(timer_data["raw_begin"]) - (int(margin_before_min) * 60)
+    if infinite:
+        end = max(begin, now_ts) + 86400
+    else:
+        end = int(timer_data["raw_end"]) + (int(margin_after_min) * 60)
+
+    try:
+        from RecordTimer import AFTEREVENT, RecordTimerEntry
+        from ServiceReference import ServiceReference
+
+        after_ev = getattr(AFTEREVENT, "AUTO", 3)
+        local_dir = selected_dirname if selected_dirname else None
+
+        entry = RecordTimerEntry(
+            ServiceReference(timer_data["sref"]),
+            begin,
+            end,
+            timer_data["name"],
+            timer_data["desc"],
+            int(timer_data.get("eit") or 0),
+            disabled=False,
+            justplay=False,
+            afterEvent=after_ev,
+            dirname=local_dir,
+        )
+
+        rec_timer = getattr(session.nav, "RecordTimer", None)
+        if rec_timer is None:
+            session.open(
+                MessageBox,
+                "Nepodařilo se získat RecordTimer tohoto přijímače.",
+                MessageBox.TYPE_ERROR,
+                timeout=6,
+            )
+            return
+
+        conflicts = rec_timer.record(entry)
+        if conflicts is None:
+            try:
+                auto_cleanup_old_local_timers(session)
+            except Exception:
+                pass
+            if callable(on_changed_callback):
+                try:
+                    on_changed_callback()
+                except Exception:
+                    pass
+            dir_info = local_dir if local_dir else "výchozí"
+            if infinite:
+                margin_info = "-%d min / nekonečné (\u221e)" % margin_before_min
+            else:
+                margin_info = "-%d / +%d min" % (margin_before_min, margin_after_min)
+            msg = "Časovač přidán na Tento přijímač (%s):\n%s\nCesta: %s" % (
+                margin_info,
+                timer_data["name"],
+                dir_info,
+            )
+            session.open(MessageBox, msg, MessageBox.TYPE_INFO, timeout=5)
+        else:
+            conflict_names = []
+            try:
+                for c in conflicts:
+                    c_name = getattr(c, "name", "")
+                    if c_name:
+                        conflict_names.append(str(c_name))
+            except Exception:
+                pass
+            c_txt = ("\n" + ", ".join(conflict_names)) if conflict_names else ""
+            msg = "Konflikt časovačů na tomto přijímači!%s" % c_txt
+            session.open(MessageBox, msg, MessageBox.TYPE_ERROR, timeout=7)
+    except Exception as e:
+        session.open(
+            MessageBox,
+            "Chyba při přidání lokálního časovače:\n%s" % str(e),
+            MessageBox.TYPE_ERROR,
+            timeout=6,
+        )
+
+
 def send_timer_http(
     session,
     box,
@@ -1235,6 +1513,7 @@ def send_timer_http(
     margin_before_min,
     margin_after_min,
     infinite=False,
+    selected_dirname="",
     on_changed_callback=None,
 ):
     now_ts = int(time.time())
@@ -1279,7 +1558,10 @@ def send_timer_http(
 
     def _worker():
         try:
-            remote_dir = fetch_remote_dirname(box, timeout=10)
+            if selected_dirname:
+                remote_dir = selected_dirname
+            else:
+                remote_dir = fetch_remote_dirname(box, timeout=10)
             url_base = "http://%s:%d/web/timeradd?" % (box["ip"], box["port"])
 
             params = {
@@ -1435,11 +1717,19 @@ def delete_timer_from_epg(session, timer_item, on_changed_callback=None):
         session.open(MessageBox, msg, MessageBox.TYPE_ERROR, timeout=6)
 
 
-def on_box_selected(session, choice, timer_data, local_callback=None, on_changed_callback=None):
+def on_box_selected(
+    session,
+    choice,
+    timer_data,
+    local_callback=None,
+    on_changed_callback=None,
+    existing_timers=None,
+):
     if not choice:
         return
 
     action, payload = choice[1]
+    ex_list = existing_timers or []
 
     if action == "SETUP":
         open_setup_screen(session)
@@ -1449,18 +1739,59 @@ def on_box_selected(session, choice, timer_data, local_callback=None, on_changed
         delete_timer_from_epg(session, payload, on_changed_callback=on_changed_callback)
         return
 
+    default_before, default_after = get_default_margins_minutes()
+
     if action == "LOCAL":
-        if callable(local_callback):
-            local_callback()
+        local_existing = next((ex for ex in ex_list if ex.get("is_local")), None)
+
+        def on_local_margins_confirmed(margins):
+            if margins is None:
+                return
+            if isinstance(margins, tuple) and len(margins) == 2 and margins[0] == "DELETE_EXISTING":
+                delete_timer_from_epg(session, margins[1], on_changed_callback=on_changed_callback)
+                return
+            m_before, m_after, is_infinite, selected_dirname = margins
+            add_local_timer(
+                session,
+                timer_data,
+                m_before,
+                m_after,
+                infinite=is_infinite,
+                selected_dirname=selected_dirname,
+                on_changed_callback=on_changed_callback,
+            )
+
+        session.openWithCallback(
+            on_local_margins_confirmed,
+            RemoteTimerMarginScreen,
+            None,
+            timer_data,
+            default_before,
+            default_after,
+            existing_timer=local_existing,
+        )
         return
 
     box = payload
-    default_before, default_after = get_default_margins_minutes()
+    remote_existing = next(
+        (
+            ex
+            for ex in ex_list
+            if not ex.get("is_local")
+            and ex.get("box")
+            and ex["box"].get("ip") == box.get("ip")
+            and ex["box"].get("port") == box.get("port")
+        ),
+        None,
+    )
 
     def on_margins_confirmed(margins):
         if margins is None:
             return
-        m_before, m_after, is_infinite = margins
+        if isinstance(margins, tuple) and len(margins) == 2 and margins[0] == "DELETE_EXISTING":
+            delete_timer_from_epg(session, margins[1], on_changed_callback=on_changed_callback)
+            return
+        m_before, m_after, is_infinite, selected_dirname = margins
         send_timer_http(
             session,
             box,
@@ -1468,6 +1799,7 @@ def on_box_selected(session, choice, timer_data, local_callback=None, on_changed
             m_before,
             m_after,
             infinite=is_infinite,
+            selected_dirname=selected_dirname,
             on_changed_callback=on_changed_callback,
         )
 
@@ -1478,6 +1810,7 @@ def on_box_selected(session, choice, timer_data, local_callback=None, on_changed
         timer_data,
         default_before,
         default_after,
+        existing_timer=remote_existing,
     )
 
 
@@ -1527,23 +1860,22 @@ def open_box_selector(session, event, service, local_callback=None, on_changed_c
             )
         )
 
-    if callable(local_callback):
-        local_rec_end = get_local_recording_end_ts(session)
-        if local_rec_end:
-            local_right = _format_until_time(local_rec_end)
-            local_color = 0x00FF5555
-        else:
-            local_next = get_local_next_timer_begin_ts(session)
-            local_right = _format_plan_in_minutes(local_next) if local_next else ""
-            local_color = 0x00FFDD33 if local_right else None
-        items.append(
-            (
-                "(%s) Tento přijímač" % get_local_tag(),
-                local_right,
-                local_color,
-                ("LOCAL", None),
-            )
+    local_rec_end = get_local_recording_end_ts(session)
+    if local_rec_end:
+        local_right = _format_until_time(local_rec_end)
+        local_color = 0x00FF5555
+    else:
+        local_next = get_local_next_timer_begin_ts(session)
+        local_right = _format_plan_in_minutes(local_next) if local_next else ""
+        local_color = 0x00FFDD33 if local_right else None
+    items.append(
+        (
+            "(%s) Tento přijímač" % get_local_tag(),
+            local_right,
+            local_color,
+            ("LOCAL", None),
         )
+    )
 
     active_boxes = get_active_boxes()
     for b in active_boxes:
@@ -1582,6 +1914,7 @@ def open_box_selector(session, event, service, local_callback=None, on_changed_c
             timer_data,
             local_callback=local_callback,
             on_changed_callback=on_changed_callback,
+            existing_timers=existing_timers,
         ),
         BoxSelectorScreen,
         title,
