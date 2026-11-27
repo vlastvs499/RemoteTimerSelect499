@@ -2,16 +2,16 @@
 
 > **Language / Jazyk / Sprache:** [English (README.md)](README.md) | **Čeština** | [Deutsch (README_DE.md)](README_DE.md)
 
-Lehká náhrada pluginu **Partnerbox** pro **OpenATV / Enigma2 (Python 3)**.
+Plugin byl vytvořen jako náhrada pluginu **Partnerbox** pro **OpenATV / Enigma2 (Python 3)**.
 Plánujte, prohlížejte a spravujte časovače na svém lokálním přijímači a až **4 vzdálených přijímačích Enigma2** přímo z EPG nebo ze živého vysílání — vše s pohodlným nastavením přímo pomocí dálkového ovladače.
 
 ## Funkce
 
-* **Nahrávání z EPG a volitelně ze živého vysílání:** Stisknutím **REC** v EPG (nebo volitelně při sledování živého TV vysílání) vyberete lokální či vzdálený přijímač, nastavíte posun před/za pořadem, zapnete **Nekonečné nahrávání**, případně zrušíte již existující časovač.
+* **Nahrávání z EPG a volitelně ze živého vysílání:** Stisknutím **REC v EPG** (nebo volitelně při sledování živého TV vysílání) vyberete lokální či vzdálený přijímač, nastavíte posun před/za pořadem, zapnete **Nekonečné nahrávání**, případně zrušíte již existující časovač.
 
-* **Živý stav přijímačů ve výběru:** Přijímače, které právě nahrávají, jsou zvýrazněny **červeně** (`REC do: 19:00` nebo `REC do: ∞`). Přijímače s plánovaným časovačem do 100 minut jsou zvýrazněny **žlutě** (`Plán. REC za: 45 min`).
+* **Živý stav přijímačů ve výběru:** Přijímače, které právě nahrávají, jsou zvýrazněny **červeně** (`REC do: 19:00` nebo `REC do: ∞` v případě nekonečného nahrávání). Přijímače s plánovaným časovačem do 100 minut jsou zde zvýrazněny **žlutě** (`Plán. REC za: 45 min`). Tím se předejde jejich výběru a zrušení zamýšleného nahrávání na další obrazovce kvůli překryvu pořadů na různých stanicích. 
 
-* **Značky časovačů přímo v EPG:** Naplánované pořady jsou v seznamu EPG automaticky označeny vlastní značkou přijímače (např. `[L]`, `[M]`, `[V]`).
+* **Značky časovačů přímo v EPG:** Naplánované pořady jsou v seznamu EPG automaticky označeny vlastní značkou přijímače (např. `[L]`, `[M]`, `[V]`). Ta se nastavuje v nastavení vzdálených přijímačů v MENU/
 
 * **Souhrnná obrazovka „Všechny časovače“:** Zobrazuje všechny lokální i vzdálené časovače v jednom chronologicky seřazeném přehledu (`Datum a čas` → `Stav` → `Značka` → `Kanál | Pořad`) s barevným stavem, symbolem `∞` a blikající indikací `[Nahrává]` u běžících nekonečných nahrávek.
 
