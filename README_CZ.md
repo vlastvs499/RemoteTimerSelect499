@@ -13,7 +13,7 @@ Plánujte, prohlížejte a spravujte časovače na svém lokálním přijímači
 
 * **Značky časovačů přímo v EPG:** Naplánované pořady jsou v seznamu EPG automaticky označeny vlastní značkou přijímače (např. `[L]`, `[M]`, `[V]`). Ta se nastavuje v nastavení vzdálených přijímačů v MENU/Časovače/Nastavení vzdálených časovačů. Toto nastavení je i v seznamu pluginů.
 
-* **Souhrnná obrazovka „Všechny časovače“:** Zobrazuje všechny lokální i vzdálené časovače v jednom chronologicky seřazeném přehledu (`Datum a čas` → `Stav` → `Značka` → `Kanál | Pořad`) s barevným stavem, symbolem `∞` a blikající indikací `[Nahrává]` u běžících nekonečných nahrávek. V OpenATV je vhodné si tuto položku posunout na první obrazovce nahoru (najet na tuto položku Všechny časovače - modrým povolit úpravy, pak stisk zeleného a posunout nahoru. Pak znovu zelené tlačítko a modré, hotovo).
+* **Souhrnná obrazovka „Všechny časovače“:** Zobrazuje všechny lokální i vzdálené časovače v jednom chronologicky seřazeném přehledu (`Datum a čas` → `Stav` → `Značka` → `Kanál | Pořad`) s barevným stavem, symbolem `∞` a blikající indikací `[Nahrává]` u běžících nekonečných nahrávek. V OpenATV je vhodné si tuto položku posunout na první obrazovce nahoru (najet na tuto položku Všechny časovače - modrým povolit úpravy, pak stisk zeleného a posunout nahoru. Pak znovu zelené tlačítko, pak modré, hotovo).
 * 
 * **Rychlá změna konce nahrávání:** Stisknutím **MODRÉHO** tlačítka ve *Všechny časovače* upravíte čas konce probíhajícího nebo čekajícího časovače (`±1 min` / `±5 min`) včetně ochrany proti kolizi (1 minuta bezpečnostní rezervy před dalším čekajícím časovačem na stejném přijímači). Pokud se tedy konec vámi nataženého času přiblíží dalšímu plánovanému záznamu, další natažení času se zablokuje.
 
@@ -69,22 +69,25 @@ killall -9 enigma2
 ## Nastavení (dálkovým ovladačem)
 
 1. Otevřete nastavení některou z těchto cest:
-   * **Menu → Všechny časovače**, poté stiskněte **ŽLUTÉ** tlačítko nebo **MENU** nebo:
-   * **Menu → Časovače → Nastavení vzdálených časovačů** nebo:
+   * **Menu → Všechny časovače**, poté stiskněte **ŽLUTÉ** tlačítko nebo **MENU**
+   * nebo:
+   * **Menu → Časovače → Nastavení vzdálených časovačů**
+   * nebo:
    * **Pluginy → Vzdálené časovače - nastavení**
+   * 
 2. Nastavte jednotlivé položky:
-   * **Označení tohoto přijímače** (max. 2 znaky, výchozí: `L`)
-   * **Auto-mazání hotových/selhaných (dny)** (`0` = vypnuto)
-   * **Výběr boxu tlačítkem REC (živé TV)** (`Ne` = klasické chování OpenATV, `Ano` = výběr přijímačů při stisku REC na živém vysílání)
+   * **Označení tohoto přijímače** (max. 2 znaky, výchozí: `L`) -dva znaky záměrně - obecně je ideální dávat krátké názvy - budou se totiž zobrazovat v EPG před naplánovaným nahráváním.
+   *    * **Auto-mazání hotových/selhaných (dny)** (`0` = vypnuto)
+   * **Výběr boxu tlačítkem REC (živé TV)** (`Ne` = klasické chování tlačítka nahrávání OpenATV bez možnosti výběru přijímačů, `Ano` = při stisku REC se zobrazí výběr přijímačů). Při výběru z EPG je výběr přijímačů k dispozici vždy.
    * **Až 4 vzdálené boxy:** stiskem **OK** na textových polích otevřete virtuální klávesnici, IP adresy zadávejte číselnými tlačítky (`0–9`, nepoužité sloty nechte na `0.0.0.0`), výchozí port OpenWebif je `80`.
 3. Uložte stiskem **ZELENÉHO** tlačítka. Vzdálené časovače se ihned sesynchronizují bez nutnosti restartu GUI.
 
 ## Používání
 
 * **EPG:** Najeďte na libovolný pořad a stiskněte **REC** pro naplánování nebo zrušení časovače na kterémkoli nastaveném boxu.
-* **Živé vysílání (volitelné):** Je-li funkce povolena v nastavení partnerských boxů, stisknutím tlačítka **REC** se otevře výběr tohoto pluginu s nabídkou vzdálených boxů. Při nepovolení položky **„Výběr boxu tlačítkem REC (živé TV)“** se nabídka boxů neotevře a přijímač se bude chovat v OpenATV klasicky.
+* **Okamžité nahrávání (volitelné):** Je-li funkce povolena v nastavení partnerských boxů, stisknutím tlačítka **REC** se otevře výběr tohoto pluginu s nabídkou vzdálených boxů. Při nepovolení položky **„Výběr boxu tlačítkem REC (živé TV)“** se nabídka boxů neotevře a přijímač se bude chovat v OpenATV klasicky.
 * **Všechny časovače (`Menu → Všechny časovače`):**
-  * **OK:** Smazání vybraného časovače (nebo hromadné smazání všech hotových a selhaných přes horní lištu).
+  * **OK:** Smazání vybraného časovače, i když právě probíhá - smaže se časovač a nahrávání, ne samotný záznam (je možné i hromadné smazání všech hotových a selhaných přes horní lištu).
   * **ČERVENÁ:** Zastavení probíhajícího nahrávání (**STOP REC** nebo **STOP REC & SMAZAT NAHRÁVKU**).
   * **MODRÁ:** Změna konce probíhajícího nebo čekajícího nahrávání (`VLEVO/VPRAVO` = ±1 min, `NAHORU/DOLŮ` = ±5 min).
   * **ŽLUTÁ / MENU:** Otevření nastavení boxů.
