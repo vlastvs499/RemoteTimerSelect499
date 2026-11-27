@@ -114,6 +114,6 @@ killall -9 enigma2
 
 * **Infinite recording & blinking indicator:** Added an *Infinite recording* option (24 h), aligned **`∞`** symbol display, and a 1 Hz blinking `[Recording]` indicator in *All Timers*.
 
-* **Upcoming planned REC alert:** Receivers with a timer starting within 100 minutes are highlighted in **yellow** (`Plan. REC in: X min`) in the receiver selector.
+* **Upcoming planned REC alert:** Receivers with a timer before which you might want to insert another preceding timer will warn you if the next timer (after it) starts recording in less than 100 minutes (Plan. REC in: X min).
 
 * **Sleeping HDD spin-up handling:** Background timer creation with extended timeouts and a *Connecting (spinning up disk)...* notification to prevent freezes/timeouts on spun-down drives.
