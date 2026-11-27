@@ -177,7 +177,7 @@ class RemoteTimerSetupScreen(ConfigListScreen, Screen):
                 "Nach wie vielen Tagen fertige und fehlgeschlagene Timer automatisch gelöscht werden (0 = aus).",
             ),
             (
-                getConfigListEntry("Box-Auswahl mit REC-Taste (Live-TV)", cfg.live_rec_selector),
+                getConfigListEntry("Box-Auswahl mit REC (empf. Ja)", cfg.live_rec_selector),
                 "Öffnet beim Drücken von REC im Live-TV die Receiver-Auswahl (aus = Standardverhalten von OpenATV).",
             ),
         ]
