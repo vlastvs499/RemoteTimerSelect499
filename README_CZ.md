@@ -2,7 +2,7 @@
 
 > **Language / Jazyk / Sprache:** [English (README.md)](README.md) | **Čeština** | [Deutsch (README_DE.md)](README_DE.md)
 
-Plugin byl vytvořen jako náhrada pluginu **Partnerbox** pro **OpenATV / Enigma2 (Python 3)**.
+Plugin byl vytvořen jako náhrada pluginu **RemoteTimer** pro **OpenATV / Enigma2 (Python 3)**.
 Plánujte, prohlížejte a spravujte časovače na svém lokálním přijímači a až **4 vzdálených přijímačích Enigma2** přímo z EPG nebo ze živého vysílání — vše s pohodlným nastavením přímo pomocí dálkového ovladače.
 
 ## Funkce
@@ -93,7 +93,7 @@ killall -9 enigma2
   * **ŽLUTÁ / MENU:** Otevření nastavení boxů.
 
 
- > **Tip**: Doporučuji nastavit volbu Výběr boxu tlačítkem REC (živé TV) na Ano (najdete v Pluginy → Vzdálené časovače - nastavení → Výběr boxu tlačítkem REC (živé TV)). Alternativní cesta: Menu - Časovače - Nastavení vzdálených časovačů - Výběr boxu tlačítkem REC (Živé TV). Pak bude veškeré ovládání nahrávání jednotné, včetně lokálního. V případě zákazu tohoto tlačítka bude okamžité nahrávání řízeno systémem.
+ > **Tip**: Doporučuji nastavit volbu Výběr boxu i tlačítkem REC na Ano (najdete v Pluginy → Vzdálené časovače - nastavení → Výběr boxu i tlačítkem REC). Alternativní cesta: Menu - Časovače - Nastavení vzdálených časovačů - Výběr boxu i tlačítkem REC. Pak bude veškeré ovládání nahrávání jednotné, včetně lokálního. V případě zákazu tohoto tlačítka je okamžité nahrávání řízeno systémem.
 
 ## Přehled změn (Changelog)
 
