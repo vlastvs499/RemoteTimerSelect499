@@ -1,26 +1,30 @@
 # RemoteTimerSelect499
 
+> **Language / Jazyk / Sprache:** **English** | [Čeština (README_CZ.md)](README_CZ.md) | [Deutsch (README_DE.md)](README_DE.md)
+
 A lightweight replacement for the **Partnerbox** plugin for **OpenATV / Enigma2 (Python 3)**.
-Schedule, view, and manage timers across your local receiver and up to **4 remote Enigma2 receivers** directly from the EPG — fully configurable using the remote control.
+Schedule, view, and manage timers across your local receiver and up to **4 remote Enigma2 receivers** directly from the EPG or live TV — fully configurable using the remote control.
+
+---
 
 ## Features
-* **Direct EPG Recording & Cancellation:** Press **REC** on any program in the EPG to choose the local or any remote receiver (with custom start/end margins), or cancel an existing timer or recording directly from the popup menu.
-* **EPG Timer Badges:** Programs scheduled on remote receivers are automatically marked with custom receiver tags (e.g. `[B1]`, `[M]`, `[V]`) directly in the EPG list.
-* **Unified All Timers Screen:** View all local and remote timers in one chronologically sorted, column-aligned overview (`Date & Time` → `Status` → `Badge` → `Channel | Event`) with color-coded statuses.
-* **Remote Control Setup:** Configure up to 4 remote boxes (name, tag, IP address, OpenWebif port, optional login) directly on receiver — settings are saved in `/etc/enigma2/settings`.
-* **Automatic & Bulk Cleanup:** Automatically removes finished/failed timers older than X days, plus one-click bulk cleanup across all receivers.
-* **Dynamic Remote Recording Path:** Automatically queries each remote receiver for its active recording directory. It prioritizes the folder currently opened in the remote receiver's recordings list, allowing you to instantly and easily change the target recording directory (e.g., via the web interface).
+- **EPG & Optional Live TV Recording:** Press **REC** in the EPG (or optionally during live TV) to choose the local or any remote receiver, set custom start/end margins, enable **Infinite recording**, or cancel an existing timer.
+- **Live Status in Receiver Selection:** Currently recording receivers are highlighted in **red** (`REC until: 19:00` or `REC until: ∞`). Receivers with an upcoming timer within 100 minutes are highlighted in **yellow** (`Plan. REC in: 45 min`).
+- **EPG Timer Badges:** Scheduled programs are automatically marked in the EPG with custom receiver tags (e.g., `[L]`, `[M]`, `[V]`).
+- **Unified All Timers Screen:** View all local and remote timers in one chronologically sorted overview (`Date & Time` → `Status` → `Badge` → `Channel | Event`) with color-coded statuses, `∞` symbol, and a blinking `[Recording]` indicator for active infinite recordings.
+- **Quick End-Time Adjustment:** Press **BLUE** in *All Timers* to adjust the end time of any active or waiting timer (`±1 min` / `±5 min`) with built-in collision protection (1-minute safety buffer before the next waiting timer on the same box).
+- **Stop & Delete Recordings:** Press **RED** on an active recording to choose **STOP REC** or **STOP REC & DELETE RECORDING** (stops recording and deletes both timer and file from disk).
+- **Dynamic Path & Sleeping HDD Support:** Automatically queries the active recording directory on each remote box and handles spun-down hard drives in the background without timeouts or UI freezes (fully compatible with OpenATV 8.0).
+- **Remote Control Setup & Auto-Cleanup:** Configure up to 4 remote boxes directly on the receiver (saved in `/etc/enigma2/settings`) with automatic and one-click bulk cleanup of finished/failed timers.
 
-* **All Timers:** Open **Menu → All Timers** (also available under **Timers**, **Extensions**, and **Plugins**). Press **OK** on a timer to delete it, press **RED** on an active recording to choose **STOP REC** or **STOP & DELETE Recording** (stops the recording and deletes the timer + file from disk), or select the top banner to bulk-delete finished and failed timers.
-
-* **Note:** The remote control button for instant recording on the local box remains unchanged — partner boxes are not shown there! Always schedule timers and start instant recordings exclusively via the EPG. There, you can also start an instant recording on the local box by adding an immediate timer (press the **Green** button or REC button on a currently running EPG event).
-
+---
 
 ## Installation
 
-### Option 1: Quick Install via SSH (English version)
-Connect to your receiver via SSH as `root` and run:
+### Option 1: Quick Install via SSH or Telnet (RCC / DCC)
+Connect to your receiver via **SSH** or **Telnet** (e.g. using **PuTTY**, **RCC**, or **DCC**) as `root` and run the commands for your preferred language:
 
+#### English version (`EN`)
 ```bash
 mkdir -p /usr/lib/enigma2/python/Plugins/Extensions/RemoteTimerSelect499
 wget -O /usr/lib/enigma2/python/Plugins/Extensions/RemoteTimerSelect499/__init__.py https://raw.githubusercontent.com/vlastvs499/RemoteTimerSelect499/main/EN/__init__.py
@@ -28,9 +32,7 @@ wget -O /usr/lib/enigma2/python/Plugins/Extensions/RemoteTimerSelect499/plugin.p
 killall -9 enigma2
 ```
 
-### Option 1b: Quick Install via SSH (Czech version / Česká verze)
-Connect to your receiver via SSH as `root` and run:
-
+#### Czech version / Česká verze (`CZ`)
 ```bash
 mkdir -p /usr/lib/enigma2/python/Plugins/Extensions/RemoteTimerSelect499
 wget -O /usr/lib/enigma2/python/Plugins/Extensions/RemoteTimerSelect499/__init__.py https://raw.githubusercontent.com/vlastvs499/RemoteTimerSelect499/main/CZ/__init__.py
@@ -38,8 +40,7 @@ wget -O /usr/lib/enigma2/python/Plugins/Extensions/RemoteTimerSelect499/plugin.p
 killall -9 enigma2
 ```
 
-### Option 1c: Quick Install via SSH (German version / Deutsche Version)
-Connect to your receiver via SSH as `root` and run:
+#### German version / Deutsche Version (`DE`)
 ```bash
 mkdir -p /usr/lib/enigma2/python/Plugins/Extensions/RemoteTimerSelect499
 wget -O /usr/lib/enigma2/python/Plugins/Extensions/RemoteTimerSelect499/__init__.py https://raw.githubusercontent.com/vlastvs499/RemoteTimerSelect499/main/DE/__init__.py
@@ -47,35 +48,45 @@ wget -O /usr/lib/enigma2/python/Plugins/Extensions/RemoteTimerSelect499/plugin.p
 killall -9 enigma2
 ```
 
-
 ### Option 2: Manual Installation
 1. Create the directory `/usr/lib/enigma2/python/Plugins/Extensions/RemoteTimerSelect499/` on your receiver.
-2. Copy `__init__.py` and `plugin.py` from either the `EN/` or `CZ/` folder into that directory (keep **UTF-8** encoding and **LF** line endings).
+2. Copy `__init__.py` and `plugin.py` from the `EN/`, `CZ/`, or `DE/` folder into that directory (keep **UTF-8** encoding and **LF** line endings).
 3. Restart Enigma2 GUI (`killall -9 enigma2` or via **Menu → Standby / Restart → Restart GUI**).
 
-> **Note:** After installation, the **All Timers** (**Všechny časovače**) item will appear in the main menu.
+> **Tip:** If you have multiple receivers, install the plugin on all of them so you can manage timers across all boxes from whichever receiver you are currently using.
+
+---
 
 ## Configuration (Remote Control)
-1. Open setup via any of these menus:
-   * **Menu → All Timers**, then press **YELLOW** or **MENU**
-   * **Menu → Timers → Remote Timers Setup**
-   * **Plugins → Remote Timers - Setup**
-2. Set your local badge (default: `L`), auto-cleanup days (`0` = disabled), and up to 4 remote boxes:
-   * Press **OK** on text fields (name, tag, username, password) to open the virtual keyboard.
-   * Enter IP addresses with the number keys (`0–9`). Leave unused slots at `0.0.0.0`.
-   * Default OpenWebif port is `80`. Leave username/password empty if authentication is disabled.
+1. Open settings via any of these menus:
+   - **Menu → All Timers**, then press **YELLOW** or **MENU**
+   - **Menu → Timers → Remote Timer Settings**
+   - **Plugins → Remote Timer - Settings**
+2. Configure your options:
+   - **This receiver tag** (max. 2 characters, default: `L`)
+   - **Auto-delete finished/failed** in days (`0` = off)
+   - **Box selector on REC button (live TV)** (`No` = native OpenATV menu, `Yes` = open receiver selector on live TV)
+   - **Up to 4 remote boxes:** press **OK** on text fields for the virtual keyboard, use number keys (`0–9`) for IP addresses (`0.0.0.0` = disabled), default OpenWebif port is `80`.
 3. Press **GREEN** to save. Remote timers sync immediately without restarting GUI.
 
+---
+
 ## Usage
-* **EPG:** Highlight an event and press **REC** to schedule or cancel a timer on any configured box.
-* **All Timers:** Open **Menu → All Timers** (also available under **Timers**, **Extensions**, and **Plugins**). Press **OK** on a timer to delete it, or select the top banner to bulk-delete finished and failed timers.
-* **Live recording status in receiver selection:** When choosing a receiver to record with, any receiver that is currently recording is now highlighted in **red** with its recording end time shown on the right (e.g., `REC until: 19:00`).
-* **Local receiver tag in EPG (max. 2 characters):** Local timers are now also marked in the EPG in square brackets (e.g., `[L]`) for a unified look alongside OpenATV's native recording icons. The local tag is intentionally limited to a maximum of 2 characters so it does not take up too much space in the EPG program titles.
-* **Tip:** If you have multiple receivers, I recommend installing the plugin on all of them so you can schedule and delete timers across all boxes, depending on which one you are currently using.
-  
-### Added 26.11.2026
-- **Infinite recording:** Added a third option, **Infinite recording** (*No / Yes*), to the time margin dialog. When enabled, it sets a 24-hour recording that can be stopped manually at any time.
-- **Infinity symbol (`∞`) & clean alignment:** All infinite timers (23+ hours) now display the **`∞`** symbol instead of a confusing end time (such as `08:00-08:00`) — both in the *All Timers* overview (aligned neatly with the time colons of other rows) and in the receiver selection menu (`REC until: ∞`).
-- **Blinking indicator for active infinite recordings:** In the *All Timers* overview, the `[Recording]` status blinks once per second (0.5 s on / 0.5 s off) for active infinite recordings, making it immediately obvious that a recording without an automatic end is running.
-- **Upcoming planned recording alert (yellow):** If a receiver (local or remote) is not currently recording but has a timer scheduled in less than 100 minutes, it is highlighted in **yellow** in the receiver selector with a countdown in minutes (e.g., `Plan. REC in: 45 min`). Active recordings (red) still take priority.
-- **Sleeping HDD spin-up handling:** Adding a remote timer now runs in the background with extended timeouts (10 s for recording path lookup, 20 s for timer creation) and shows a *Connecting (spinning up disk)...* notification while waiting, allowing spun-down hard drives to wake up cleanly without timeouts, freezes, or crashes (including full OpenATV 8.0 compatibility).
+- **EPG:** Highlight any program and press **REC** to schedule or cancel a timer on any configured box.
+- **Live TV (optional):** When enabled in settings, pressing **REC** during live TV opens the receiver selector for the current event (selecting **This receiver** opens the native OpenATV recording menu).
+- **All Timers (`Menu → All Timers`):**
+  - **OK:** Delete the selected timer (or bulk-delete all finished/failed timers via the top banner).
+  - **RED:** Stop an active recording (**STOP REC** or **STOP REC & DELETE RECORDING**).
+  - **BLUE:** Change the end time of an active or waiting timer (`LEFT/RIGHT` = ±1 min, `UP/DOWN` = ±5 min).
+  - **YELLOW / MENU:** Open box setup.
+
+---
+
+## Changelog
+
+### 26.–27.11.2026
+- **Optional Live TV REC button:** Added a configurable setting (*Box selector on REC button (live TV)*) to open the receiver selector directly from live TV (with full OpenATV 8.0 support).
+- **Change REC end time (BLUE button):** Added end-time editing for active and waiting timers in *All Timers* with 1-minute collision protection before the next waiting timer on the same box.
+- **Infinite recording & blinking indicator:** Added an *Infinite recording* option (24 h), aligned **`∞`** symbol display, and a 1 Hz blinking `[Recording]` indicator in *All Timers*.
+- **Upcoming planned REC alert:** Receivers with a timer starting within 100 minutes are highlighted in **yellow** (`Plan. REC in: X min`) in the receiver selector.
+- **Sleeping HDD spin-up handling:** Background timer creation with extended timeouts and a *Connecting (spinning up disk)...* notification to prevent freezes/timeouts on spun-down drives.
