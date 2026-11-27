@@ -7,7 +7,7 @@ Plánujte, prohlížejte a spravujte časovače na svém lokálním přijímači
 
 ## Funkce
 
-* **Nahrávání z EPG a volitelně ze živého vysílání:** Stisknutím **REC v EPG** (nebo volitelně při sledování živého TV vysílání) vyberete lokální či vzdálený přijímač, nastavíte posun před/za pořadem, zapnete **Nekonečné nahrávání**, případně zrušíte již existující časovač.
+* **Nahrávání z EPG a okamžité nahrávání z EPG:** Stisknutím **REC v EPG** (nebo volitelně při sledování živého TV vysílání) vyberete lokální či vzdálený přijímač, nastavíte posun před/za pořadem, případně zapnete **Nekonečné nahrávání**, nebo zrušíte již existující časovač.
 
 * **Zobrazení stavu přijímačů ve výběru:** Přijímače, které právě nahrávají, jsou zvýrazněny **červeně** (`REC do: 19:00` nebo `REC do: ∞` v případě nekonečného nahrávání). Přijímače s plánovaným časovačem, který bude zahájen do 100 minut od okamžiku zobrazení, jsou zde zvýrazněny **žlutě** (`Plán. REC za: 45 min`). Tím se předejde jejich výběru a zrušení zamýšleného nahrávání na další obrazovce kvůli překryvu pořadů na různých stanicích. 
 
@@ -87,7 +87,7 @@ killall -9 enigma2
 
 * **EPG:** Najeďte na libovolný pořad a stiskněte **REC** pro naplánování nebo zrušení časovače na kterémkoli nastaveném boxu.
 * **Všechny časovače (`Menu → Všechny časovače`):**
-  * **OK:** Smazání vybraného časovače, i když právě probíhá - smaže se časovač a nahrávání, ne samotný záznam (je možné i hromadné smazání všech hotových a selhaných přes horní lištu).
+  * **OK:** Smazání vybraného časovače, i když právě probíhá - smaže se časovač a zastaví nahrávání, ne samotný záznam (dále je možné i hromadné smazání všech hotových a selhaných časovačů přes horní lištu).
   * **ČERVENÁ:** Zastavení probíhajícího nahrávání (**STOP REC** nebo **STOP REC & SMAZAT NAHRÁVKU**).
   * **MODRÁ:** Změna konce probíhajícího nebo čekajícího nahrávání (`VLEVO/VPRAVO` = ±1 min, `NAHORU/DOLŮ` = ±5 min).
   * **ŽLUTÁ / MENU:** Otevření nastavení boxů.
@@ -99,7 +99,7 @@ killall -9 enigma2
 
 ### 26.–27.11.2026
 
-* **Volitelné tlačítko REC při živém vysílání:** Přidán přepínač (*Výběr boxu tlačítkem REC (živé TV)*) pro otevření výběru přijímačů přímo ze živého vysílání (plná podpora OpenATV 8.0).
+* **Volitelné tlačítko REC při okamžitém záznamu:** Přidán přepínač (*Výběr boxu tlačítkem REC (živé TV)*) pro otevření výběru přijímačů přímo ze živého vysílání (plná podpora OpenATV 8.0).
 * **Změna konce REC (MODRÉ tlačítko):** Přidána úprava času konce u probíhajících i čekajících časovačů ve *Všech časovačích* s 1minutovou bezpečnostní rezervou proti kolizi s následujícím čekajícím časovačem na stejném boxu.
 * **Nekonečné nahrávání a blikající indikace:** Přidána volba *Nekonečné nahrávání* (24 hod.), zarovnaný symbol **`∞`** a blikající stav `[Nahrává]` (1× za sekundu) ve *Všech časovačích*.
 * **Žluté upozornění na brzké plánované nahrávání:** Přijímače s naplánovaným časovačem do 100 minut se ve výběru zvýrazňují **žlutě** (`Plán. REC za: X min`).
