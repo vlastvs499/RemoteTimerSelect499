@@ -2,7 +2,7 @@
 
 > **Language / Jazyk / Sprache:** [English (README.md)](README.md) | **Čeština** | [Deutsch (README_DE.md)](README_DE.md)
 
-Plugin byl vytvořen jako náhrada pluginu **RemoteTimer** pro **OpenATV / Enigma2 (Python 3)**.
+Plugin byl vytvořen jako náhrada pluginu **RemoteTimer** pro **OpenATV / Enigma2 (Python 3)**, ovšem pro 4 vzdálené přijímače.
 Plánujte, prohlížejte a spravujte časovače na svém lokálním přijímači a až **4 vzdálených přijímačích Enigma2** přímo z EPG nebo ze živého vysílání — vše s pohodlným nastavením přímo pomocí dálkového ovladače.
 
 ## Funkce
