@@ -11,7 +11,7 @@ Plánujte, prohlížejte a spravujte časovače na svém lokálním přijímači
 
 * **Živý stav přijímačů ve výběru:** Přijímače, které právě nahrávají, jsou zvýrazněny **červeně** (`REC do: 19:00` nebo `REC do: ∞` v případě nekonečného nahrávání). Přijímače s plánovaným časovačem do 100 minut jsou zde zvýrazněny **žlutě** (`Plán. REC za: 45 min`). Tím se předejde jejich výběru a zrušení zamýšleného nahrávání na další obrazovce kvůli překryvu pořadů na různých stanicích. 
 
-* **Značky časovačů přímo v EPG:** Naplánované pořady jsou v seznamu EPG automaticky označeny vlastní značkou přijímače (např. `[L]`, `[M]`, `[V]`). Ta se nastavuje v nastavení vzdálených přijímačů v MENU/Časovače/Nastavení vzdálených časovačů. Toto nastavení je i v seznamu pluginů.
+* **Značky časovačů přímo v EPG:** Naplánované pořady jsou v seznamu EPG automaticky označeny vlastní značkou přijímače, který bude záznam provádět (např. `[L]`, `[M]`, `[V]`). Ta se nastavuje v nastavení, kde se zadávají vzdálené přijímače v MENU/Časovače/Nastavení vzdálených časovačů. Toto nastavení je i v seznamu pluginů.
 
 * **Souhrnná obrazovka „Všechny časovače“:** Zobrazuje všechny lokální i vzdálené časovače v jednom chronologicky seřazeném přehledu (`Datum a čas` → `Stav` → `Značka` → `Kanál | Pořad`) s barevným stavem, symbolem `∞` a blikající indikací `[Nahrává]` u běžících nekonečných nahrávek. V OpenATV je vhodné si tuto položku posunout na první obrazovce nahoru (najet na tuto položku Všechny časovače - modrým povolit úpravy, pak stisk zeleného a posunout nahoru. Pak znovu zelené tlačítko, pak modré, hotovo).
 * 
@@ -78,7 +78,7 @@ killall -9 enigma2
 2. Nastavte jednotlivé položky:
    * **Označení lokálního (hlavního) přijímače** (max. 2 znaky, výchozí: `L`) - dva znaky záměrně - obecně je ideální dávat krátké názvy, nejlépe znak jeden - budou se totiž zobrazovat v EPG před naplánovaným nahráváním.
    *    * **Auto-mazání hotových/selhaných (dny)** (`0` = vypnuto)
-   * **Výběr boxu tlačítkem REC (živé TV)** (`Ne` = klasické chování tlačítka nahrávání OpenATV bez možnosti výběru přijímačů, `Ano` = při stisku REC se zobrazí výběr přijímačů). Při výběru z EPG je výběr přijímačů k dispozici vždy.
+   * **Výběr boxu i tlačítkem REC** (`Ne` = klasické chování tlačítka nahrávání OpenATV bez možnosti výběru přijímačů, `Ano` = při stisku REC se zobrazí výběr přijímačů). Při výběru z EPG je výběr přijímačů k dispozici vždy.
    * **Až 4 vzdálené boxy:** stiskem **OK** na textových polích otevřete virtuální klávesnici, IP adresy zadávejte číselnými tlačítky (`0–9`, nepoužité sloty nechte na `0.0.0.0`), výchozí port OpenWebif je `80`.
 3. Uložte stiskem **ZELENÉHO** tlačítka. Vzdálené časovače se ihned sesynchronizují bez nutnosti restartu GUI.
 
