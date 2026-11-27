@@ -92,6 +92,8 @@ killall -9 enigma2
   * **MODRÁ:** Změna konce probíhajícího nebo čekajícího nahrávání (`VLEVO/VPRAVO` = ±1 min, `NAHORU/DOLŮ` = ±5 min).
   * **ŽLUTÁ / MENU:** Otevření nastavení boxů.
 
+  > **Tip**: Doporučuji nastavit volbu Výběr boxu tlačítkem REC (živé TV) na Ano (najdete v Pluginy → Vzdálené časovače - nastavení → Výběr boxu tlačítkem REC (živé TV)). Alternativní cesta: Menu - Časovače - Nastavení vzdálených časovačů - Výběr boxu tlačítkem REC (Živé TV). Pak bude veškeré ovládání nahrávání jednotné, včetně lokálního. V případě zákazu tohoto tlačítka bude okamžité nahrávání řízeno systémem.
+
 ## Přehled změn (Changelog)
 
 ### 26.–27.11.2026
