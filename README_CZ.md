@@ -17,7 +17,7 @@ Plánujte, prohlížejte a spravujte časovače na svém lokálním přijímači
 * 
 * **Rychlá změna konce nahrávání:** Stisknutím **MODRÉHO** tlačítka ve *Všechny časovače* upravíte čas konce probíhajícího nebo čekajícího časovače (`±1 min` / `±5 min`) včetně ochrany proti kolizi (1 minuta bezpečnostní rezervy před dalším čekajícím časovačem na stejném přijímači). Pokud se tedy konec vámi nataženého času přiblíží dalšímu plánovanému záznamu, další natažení času se zablokuje.
 
-* **Zastavení i smazání nahrávky:** Stisknutím **ČERVENÉHO** tlačítka na běžícím nahrávání vyberete **STOP REC** nebo **STOP REC & SMAZAT NAHRÁVKU** (zastaví nahrávání a smaže časovač i soubor z disku). Také tlačítko OK jen zastaví nahrávání a smaže časovač, ne záznam.
+* **Zastavení i smazání nahrávky:** V seznamu Všechny časovače stiskem **ČERVENÉHO** tlačítka na běžícím nahrávání vyberete **STOP REC** nebo **STOP REC & SMAZAT NAHRÁVKU** (zastaví nahrávání a smaže časovač i soubor z disku). Také tlačítko OK je možné zastavt nahrávání a smazat časovač, ovšem nikoli záznam.
 
 * **Dynamická cesta a podpora uspaných disků:** Automaticky zjišťuje aktivní složku pro nahrávání na vzdáleném boxu a odesílání časovače řeší na pozadí s prodlouženým časovým limitem, takže se uspaný HDD roztočí bez timeoutů a zamrzání (plně kompatibilní s OpenATV 8.0).
 * Pro usnadnění cesty k záznamu a její jednoduché změně nahrává vzdálený časovač do složky záznamů, ve které právě je. Je to nejrychlejší varianta, jak změnit cestu do složky, kam chceme, aby nahrával. Pokud si nastavíte složku 1 pro první záznam a pak ji pro jiný záznam změníte, nebude se nahrávat do poslední nastavené složky, ale do první půjde první záznam a do druhé druhý. Cesty tedy zůstávají zachovány.
