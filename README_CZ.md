@@ -11,15 +11,16 @@ Plánujte, prohlížejte a spravujte časovače na svém lokálním přijímači
 
 * **Živý stav přijímačů ve výběru:** Přijímače, které právě nahrávají, jsou zvýrazněny **červeně** (`REC do: 19:00` nebo `REC do: ∞` v případě nekonečného nahrávání). Přijímače s plánovaným časovačem do 100 minut jsou zde zvýrazněny **žlutě** (`Plán. REC za: 45 min`). Tím se předejde jejich výběru a zrušení zamýšleného nahrávání na další obrazovce kvůli překryvu pořadů na různých stanicích. 
 
-* **Značky časovačů přímo v EPG:** Naplánované pořady jsou v seznamu EPG automaticky označeny vlastní značkou přijímače (např. `[L]`, `[M]`, `[V]`). Ta se nastavuje v nastavení vzdálených přijímačů v MENU/
+* **Značky časovačů přímo v EPG:** Naplánované pořady jsou v seznamu EPG automaticky označeny vlastní značkou přijímače (např. `[L]`, `[M]`, `[V]`). Ta se nastavuje v nastavení vzdálených přijímačů v MENU/Časovače/Nastavení vzdálených časovačů. Toto nastavení je i v seznamu pluginů.
 
-* **Souhrnná obrazovka „Všechny časovače“:** Zobrazuje všechny lokální i vzdálené časovače v jednom chronologicky seřazeném přehledu (`Datum a čas` → `Stav` → `Značka` → `Kanál | Pořad`) s barevným stavem, symbolem `∞` a blikající indikací `[Nahrává]` u běžících nekonečných nahrávek.
+* **Souhrnná obrazovka „Všechny časovače“:** Zobrazuje všechny lokální i vzdálené časovače v jednom chronologicky seřazeném přehledu (`Datum a čas` → `Stav` → `Značka` → `Kanál | Pořad`) s barevným stavem, symbolem `∞` a blikající indikací `[Nahrává]` u běžících nekonečných nahrávek. V OpenATV je vhodné si tuto položku posunout na první obrazovce nahoru (najet na tuto položku Všechny časovače - modrým povolit úpravy, pak stisk zeleného a posunout nahoru. Pak znovu zelené tlačítko a modré, hotovo).
+* 
+* **Rychlá změna konce nahrávání:** Stisknutím **MODRÉHO** tlačítka ve *Všechny časovače* upravíte čas konce probíhajícího nebo čekajícího časovače (`±1 min` / `±5 min`) včetně ochrany proti kolizi (1 minuta bezpečnostní rezervy před dalším čekajícím časovačem na stejném přijímači). Pokud se tedy konec vámi nataženého času přiblíží dalšímu plánovanému záznamu, další natažení času se zablokuje.
 
-* **Rychlá změna konce nahrávání:** Stisknutím **MODRÉHO** tlačítka ve *Všech časovačích* upravíte čas konce probíhajícího nebo čekajícího časovače (`±1 min` / `±5 min`) včetně ochrany proti kolizi (1 minuta bezpečnostní rezervy před dalším čekajícím časovačem na stejném přijímači).
-
-* **Zastavení i smazání nahrávky:** Stisknutím **ČERVENÉHO** tlačítka na běžícím nahrávání vyberete **STOP REC** nebo **STOP REC & SMAZAT NAHRÁVKU** (zastaví nahrávání a smaže časovač i soubor z disku).
+* **Zastavení i smazání nahrávky:** Stisknutím **ČERVENÉHO** tlačítka na běžícím nahrávání vyberete **STOP REC** nebo **STOP REC & SMAZAT NAHRÁVKU** (zastaví nahrávání a smaže časovač i soubor z disku). Také tlačítko OK jen zastaví nahrávání a smaže časovač, ne záznam.
 
 * **Dynamická cesta a podpora uspaných disků:** Automaticky zjišťuje aktivní složku pro nahrávání na vzdáleném boxu a odesílání časovače řeší na pozadí s prodlouženým časovým limitem, takže se uspaný HDD roztočí bez timeoutů a zamrzání (plně kompatibilní s OpenATV 8.0).
+* Pro usnadnění cesty k záznamu a její jednoduché změně nahrává vzdálený časovač do složky záznamů, ve které právě je. Je to nejrychlejší varianta, jak změnit cestu do složky, kam chceme, aby nahrával. Pokud si nastavíte složku 1 pro první záznam a pak ji pro jiný záznam změníte, nebude se nahrávat do poslední nastavené složky, ale do první půjde první záznam a do druhé druhý. Cesty tedy zůstávají zachovány.
 
 * **Nastavení ovladačem a automatický úklid:** Konfigurace až 4 vzdálených boxů přímo v přijímači (ukládá se do `/etc/enigma2/settings`) s automatickým i hromadným mazáním hotových a selhaných časovačů.
 
@@ -27,7 +28,8 @@ Plánujte, prohlížejte a spravujte časovače na svém lokálním přijímači
 
 ### Možnost 1: Rychlá instalace přes SSH nebo Telnet (RCC / DCC)
 
-Připojte se k přijímači přes **SSH** nebo **Telnet** (např. přes **PuTTY**, **RCC** nebo **DCC**) jako `root` a spusťte příkazy pro zvolený jazyk:
+Připojte se k přijímači přes **SSH** nebo **Telnet** (např. přes **PuTTY**, **RCC** nebo **DCC**) jako `root` a spusťte příkazy pro zvolený jazyk.
+Zkopírujte všechny tyto příkazy pro jazyk, který chcete, po nainstalování stiskněte za posledním Enter. Proběhne restart Enigmy.
 
 #### Česká verze (`CZ`)
 
@@ -67,8 +69,8 @@ killall -9 enigma2
 ## Nastavení (dálkovým ovladačem)
 
 1. Otevřete nastavení některou z těchto cest:
-   * **Menu → Všechny časovače**, poté stiskněte **ŽLUTÉ** tlačítko nebo **MENU**
-   * **Menu → Časovače → Nastavení vzdálených časovačů**
+   * **Menu → Všechny časovače**, poté stiskněte **ŽLUTÉ** tlačítko nebo **MENU** nebo:
+   * **Menu → Časovače → Nastavení vzdálených časovačů** nebo:
    * **Pluginy → Vzdálené časovače - nastavení**
 2. Nastavte jednotlivé položky:
    * **Označení tohoto přijímače** (max. 2 znaky, výchozí: `L`)
