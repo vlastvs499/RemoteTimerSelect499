@@ -53,6 +53,8 @@ TIMER_LIST_FONT_HD = 30
 
 _EPG_HOOKED = False
 _EPG_LIST_HOOKED = False
+_LIVE_REC_HOOKED = False
+_BYPASS_LIVE_REC = False
 _CACHE_TIMER = None
 _CACHE_LOCK = threading.Lock()
 _ACTIVE_POLL_TIMERS = []
@@ -68,6 +70,8 @@ def init_plugin_config():
         cfg.local_tag = ConfigText(default="L", fixed_size=False)
     if not hasattr(cfg, "auto_cleanup_days"):
         cfg.auto_cleanup_days = ConfigSelectionNumber(0, 30, 1, default=2)
+    if not hasattr(cfg, "live_rec_selector"):
+        cfg.live_rec_selector = ConfigYesNo(default=False)
 
     for idx in range(1, 5):
         sec_name = "box%d" % idx
@@ -117,6 +121,13 @@ def get_auto_cleanup_days():
         return 2
 
 
+def is_live_rec_selector_enabled():
+    try:
+        return bool(config.plugins.remotetimerselect.live_rec_selector.value)
+    except Exception:
+        return False
+
+
 def get_active_boxes():
     cfg = config.plugins.remotetimerselect
     active = []
@@ -162,6 +173,10 @@ class RemoteTimerSetupScreen(ConfigListScreen, Screen):
             (
                 getConfigListEntry("Auto-Löschen fertiger/fehlerhafter Timer (Tage)", cfg.auto_cleanup_days),
                 "Fertige und fehlgeschlagene Timer nach X Tagen automatisch löschen (0 = aus).",
+            ),
+            (
+                getConfigListEntry("Box-Auswahl per REC-Taste (Live-TV)", cfg.live_rec_selector),
+                "Beim Drücken von REC im Live-TV wird die Receiver-Auswahl geöffnet (Dieser Receiver = Standard-OpenATV-Menü).",
             ),
         ]
 
@@ -518,11 +533,13 @@ class CombinedTimersScreen(Screen):
                 '<screen name="CombinedTimersScreen" position="50,55" size="1820,970" title="Alle Timer">'
                 '<widget source="title_text" render="Label" position="25,15" size="1770,50" font="Regular;34" foregroundColor="#00ffcc33" noWrap="1" />'
                 '<widget name="list" position="25,75" size="1770,%d" font="Regular;%d" itemHeight="%d" scrollbarMode="showOnDemand" enableWrapAround="1" />'
-                '<widget source="hint_ok" render="Label" position="25,922" size="220,38" font="Regular;28" foregroundColor="#00aaaaaa" noWrap="1" />'
-                '<widget source="hint_red" render="Label" position="245,922" size="70,38" font="Regular;28" foregroundColor="#00ff5555" noWrap="1" />'
-                '<widget source="hint_stop" render="Label" position="315,922" size="190,38" font="Regular;28" foregroundColor="#00aaaaaa" noWrap="1" />'
-                '<widget source="hint_yellow" render="Label" position="505,922" size="90,38" font="Regular;28" foregroundColor="#00ffdd33" noWrap="1" />'
-                '<widget source="hint_rest" render="Label" position="595,922" size="1200,38" font="Regular;28" foregroundColor="#00aaaaaa" noWrap="1" />'
+                '<widget source="hint_ok" render="Label" position="25,922" size="195,38" font="Regular;26" foregroundColor="#00aaaaaa" noWrap="1" />'
+                '<widget source="hint_red" render="Label" position="220,922" size="65,38" font="Regular;26" foregroundColor="#00ff5555" noWrap="1" />'
+                '<widget source="hint_stop" render="Label" position="285,922" size="175,38" font="Regular;26" foregroundColor="#00aaaaaa" noWrap="1" />'
+                '<widget source="hint_yellow" render="Label" position="460,922" size="80,38" font="Regular;26" foregroundColor="#00ffdd33" noWrap="1" />'
+                '<widget source="hint_setup" render="Label" position="540,922" size="240,38" font="Regular;26" foregroundColor="#00aaaaaa" noWrap="1" />'
+                '<widget source="hint_blue" render="Label" position="780,922" size="80,38" font="Regular;26" foregroundColor="#0055aaff" noWrap="1" />'
+                '<widget source="hint_rest" render="Label" position="860,922" size="935,38" font="Regular;26" foregroundColor="#00aaaaaa" noWrap="1" />'
                 "</screen>"
             ) % (rows_h, font_sz, item_h)
         else:
@@ -533,11 +550,13 @@ class CombinedTimersScreen(Screen):
                 '<screen name="CombinedTimersScreen" position="30,35" size="1220,650" title="Alle Timer">'
                 '<widget source="title_text" render="Label" position="15,10" size="1190,36" font="Regular;24" foregroundColor="#00ffcc33" noWrap="1" />'
                 '<widget name="list" position="15,52" size="1190,%d" font="Regular;%d" itemHeight="%d" scrollbarMode="showOnDemand" enableWrapAround="1" />'
-                '<widget source="hint_ok" render="Label" position="15,606" size="160,32" font="Regular;20" foregroundColor="#00aaaaaa" noWrap="1" />'
-                '<widget source="hint_red" render="Label" position="175,606" size="50,32" font="Regular;20" foregroundColor="#00ff5555" noWrap="1" />'
-                '<widget source="hint_stop" render="Label" position="225,606" size="140,32" font="Regular;20" foregroundColor="#00aaaaaa" noWrap="1" />'
-                '<widget source="hint_yellow" render="Label" position="365,606" size="65,32" font="Regular;20" foregroundColor="#00ffdd33" noWrap="1" />'
-                '<widget source="hint_rest" render="Label" position="430,606" size="775,32" font="Regular;20" foregroundColor="#00aaaaaa" noWrap="1" />'
+                '<widget source="hint_ok" render="Label" position="15,606" size="140,32" font="Regular;18" foregroundColor="#00aaaaaa" noWrap="1" />'
+                '<widget source="hint_red" render="Label" position="155,606" size="46,32" font="Regular;18" foregroundColor="#00ff5555" noWrap="1" />'
+                '<widget source="hint_stop" render="Label" position="201,606" size="122,32" font="Regular;18" foregroundColor="#00aaaaaa" noWrap="1" />'
+                '<widget source="hint_yellow" render="Label" position="323,606" size="58,32" font="Regular;18" foregroundColor="#00ffdd33" noWrap="1" />'
+                '<widget source="hint_setup" render="Label" position="381,606" size="170,32" font="Regular;18" foregroundColor="#00aaaaaa" noWrap="1" />'
+                '<widget source="hint_blue" render="Label" position="551,606" size="58,32" font="Regular;18" foregroundColor="#0055aaff" noWrap="1" />'
+                '<widget source="hint_rest" render="Label" position="609,606" size="595,32" font="Regular;18" foregroundColor="#00aaaaaa" noWrap="1" />'
                 "</screen>"
             ) % (rows_h, font_sz, item_h)
 
@@ -549,7 +568,9 @@ class CombinedTimersScreen(Screen):
         self["hint_red"] = StaticText("ROT")
         self["hint_stop"] = StaticText("= stop REC  |")
         self["hint_yellow"] = StaticText("GELB")
-        self["hint_rest"] = StaticText("/ MENU = Box-Setup  |  EXIT = schließen")
+        self["hint_setup"] = StaticText("/ MENU = Setup  |")
+        self["hint_blue"] = StaticText("BLAU")
+        self["hint_rest"] = StaticText("= REC-Ende ändern  |  EXIT = schließen")
         self["list"] = MenuList(
             mc_entries,
             enableWrapAround=True,
@@ -565,6 +586,7 @@ class CombinedTimersScreen(Screen):
                 "cancel": self.keyCancel,
                 "red": self.keyRed,
                 "yellow": self.keySetup,
+                "blue": self.keyBlue,
                 "menu": self.keySetup,
             },
             -1,
@@ -630,8 +652,146 @@ class CombinedTimersScreen(Screen):
         if cur:
             self.close(("STOP_REC", cur[0]))
 
+    def keyBlue(self):
+        cur = self["list"].getCurrent()
+        if cur:
+            self.close(("CHANGE_END", cur[0]))
+
     def keySetup(self):
         self.close(("OPEN_SETUP", None))
+
+    def keyCancel(self):
+        self.close(None)
+
+
+class ChangeTimerEndScreen(Screen):
+    def __init__(self, session, timer_item, max_end_ts=None, next_timer_info=""):
+        Screen.__init__(self, session)
+        self.setTitle("REC-Ende ändern")
+        self.timer_item = timer_item
+        self.orig_end = int(timer_item["end"])
+        self.cur_end = self.orig_end
+        now_ts = int(time.time())
+        self.min_end = max(int(timer_item["begin"]) + 60, now_ts + 60)
+        if self.min_end > self.orig_end:
+            self.min_end = self.orig_end
+        self.max_end = int(max_end_ts) if max_end_ts else None
+
+        desktop_w = 1920
+        desktop_h = 1080
+        try:
+            sz = getDesktop(0).size()
+            desktop_w = sz.width()
+            desktop_h = sz.height()
+        except Exception:
+            pass
+
+        is_fhd = desktop_w >= 1920
+        if is_fhd:
+            win_w, win_h = 1100, 440
+            pad_x = 40
+            f_title, f_info, f_time, f_limit, f_hint = 34, 30, 52, 26, 26
+            y_title, y_info, y_time, y_limit, y_hint = 25, 95, 175, 285, 365
+            h_title, h_info, h_time, h_limit, h_hint = 50, 50, 75, 45, 45
+        else:
+            win_w, win_h = 780, 320
+            pad_x = 28
+            f_title, f_info, f_time, f_limit, f_hint = 24, 21, 36, 18, 18
+            y_title, y_info, y_time, y_limit, y_hint = 18, 68, 125, 205, 262
+            h_title, h_info, h_time, h_limit, h_hint = 36, 36, 55, 34, 34
+
+        pos_x = max(20, (desktop_w - win_w) // 2)
+        pos_y = max(20, (desktop_h - win_h) // 2)
+        inner_w = win_w - (2 * pad_x)
+
+        self.skin = (
+            '<screen name="ChangeTimerEndScreen" position="%d,%d" size="%d,%d" title="REC-Ende ändern">'
+            '<widget source="title_lbl" render="Label" position="%d,%d" size="%d,%d" font="Regular;%d" foregroundColor="#00ffcc33" noWrap="1" />'
+            '<widget source="info_lbl" render="Label" position="%d,%d" size="%d,%d" font="Regular;%d" foregroundColor="#00cccccc" noWrap="1" />'
+            '<widget source="time_lbl" render="Label" position="%d,%d" size="%d,%d" font="Regular;%d" foregroundColor="#00ffffff" halign="center" noWrap="1" />'
+            '<widget source="limit_lbl" render="Label" position="%d,%d" size="%d,%d" font="Regular;%d" foregroundColor="#00ffaa44" halign="center" noWrap="1" />'
+            '<widget source="hint_lbl" render="Label" position="%d,%d" size="%d,%d" font="Regular;%d" foregroundColor="#00aaaaaa" halign="center" noWrap="1" />'
+            "</screen>"
+        ) % (
+            pos_x, pos_y, win_w, win_h,
+            pad_x, y_title, inner_w, h_title, f_title,
+            pad_x, y_info, inner_w, h_info, f_info,
+            pad_x, y_time, inner_w, h_time, f_time,
+            pad_x, y_limit, inner_w, h_limit, f_limit,
+            pad_x, y_hint, inner_w, h_hint, f_hint,
+        )
+
+        self["title_lbl"] = StaticText(
+            "REC-Ende ändern [%s]: %s" % (timer_item["tag"], timer_item["name"])
+        )
+        try:
+            dt_b = datetime.fromtimestamp(int(timer_item["begin"]))
+            begin_str = dt_b.strftime("%d.%m %H:%M")
+        except Exception:
+            begin_str = "??:??"
+        self["info_lbl"] = StaticText(
+            "%s  |  Start: %s" % (timer_item["sname"], begin_str)
+        )
+        self["time_lbl"] = StaticText("")
+        self["limit_lbl"] = StaticText(next_timer_info)
+        self["hint_lbl"] = StaticText(
+            "LINKS/RECHTS = ±1 Min.  |  HOCH/RUNTER = ±5 Min.  |  OK = speichern  |  EXIT = abbrechen"
+        )
+
+        self["actions"] = ActionMap(
+            ["OkCancelActions", "DirectionActions", "ColorActions"],
+            {
+                "left": lambda: self._shift_minutes(-1),
+                "right": lambda: self._shift_minutes(1),
+                "down": lambda: self._shift_minutes(-5),
+                "up": lambda: self._shift_minutes(5),
+                "ok": self.keySave,
+                "green": self.keySave,
+                "cancel": self.keyCancel,
+                "red": self.keyCancel,
+            },
+            -1,
+        )
+
+        self._refresh_display()
+
+    def _refresh_display(self):
+        try:
+            dt_e = datetime.fromtimestamp(self.cur_end)
+            end_str = dt_e.strftime("%d.%m %H:%M")
+        except Exception:
+            end_str = "??:??"
+        diff_min = (self.cur_end - self.orig_end) // 60
+        if diff_min > 0:
+            diff_str = " (+%d Min.)" % diff_min
+        elif diff_min < 0:
+            diff_str = " (%d Min.)" % diff_min
+        else:
+            diff_str = " (unverändert)"
+        self["time_lbl"].setText("Neues Ende: %s%s" % (end_str, diff_str))
+
+    def _shift_minutes(self, delta_min):
+        new_ts = self.cur_end + (delta_min * 60)
+        if delta_min > 0 and self.max_end is not None and new_ts >= self.max_end:
+            self.cur_end = max(self.min_end, self.max_end)
+            self._refresh_display()
+            self.session.open(
+                MessageBox,
+                "ACHTUNG! Sie haben die Startzeit einer wartenden Aufnahme erreicht!!!",
+                MessageBox.TYPE_WARNING,
+                timeout=5,
+            )
+            return
+        if new_ts < self.min_end:
+            new_ts = self.min_end
+        self.cur_end = new_ts
+        self._refresh_display()
+
+    def keySave(self):
+        if self.cur_end == self.orig_end:
+            self.close(None)
+        else:
+            self.close(self.cur_end)
 
     def keyCancel(self):
         self.close(None)
@@ -1429,7 +1589,7 @@ def open_box_selector(session, event, service, local_callback=None, on_changed_c
     )
 
 
-# --- Gemeinsame Uebersicht, Stoppen und Loeschen von Timern und Aufnahmen ---
+# --- Gemeinsame Uebersicht, Stoppen, Endzeit aendern und Loeschen von Timern/Aufnahmen ---
 
 def _format_timer_state(state_str, disabled_str, end_ts, now_ts):
     if disabled_str == "1":
@@ -1574,6 +1734,161 @@ def fetch_remote_timers(box):
         )
 
     return timers
+
+
+def _change_remote_timer_end_raw(box, timer_item, new_end_ts):
+    url_base = "http://%s:%d/web/timerchange?" % (box["ip"], box["port"])
+    params = {
+        "sRef": timer_item["sref"],
+        "begin": str(timer_item["begin"]),
+        "end": str(int(new_end_ts)),
+        "name": timer_item["name"],
+        "description": "",
+        "channelOld": timer_item["sref"],
+        "beginOld": str(timer_item["begin"]),
+        "endOld": str(timer_item["end"]),
+        "disabled": "0",
+        "justplay": "0",
+        "afterevent": "3",
+        "deleteOldOnSave": "1",
+    }
+    url = url_base + urllib.parse.urlencode(params)
+    req = _build_request(box, url)
+    with urllib.request.urlopen(req, timeout=6) as resp:
+        xml_data = resp.read()
+    root = ET.fromstring(xml_data)
+    state_ok = _xml_text(root, "e2state").lower() == "true"
+    statetext = _xml_text(root, "e2statetext", "Keine Antwort")
+    return state_ok, statetext
+
+
+def _change_local_timer_end_raw(session, timer_item, new_end_ts):
+    rec_timer = getattr(session.nav, "RecordTimer", None)
+    t_obj = timer_item.get("local_obj")
+    if rec_timer is None or t_obj is None:
+        return False, "Lokaler Timer nicht gefunden"
+    try:
+        t_obj.end = int(new_end_ts)
+        rec_timer.timeChanged(t_obj)
+        return True, "Endzeit geändert"
+    except Exception as e:
+        return False, str(e)
+
+
+def change_any_timer_end(session, timer_item, new_end_ts):
+    try:
+        dt_new = datetime.fromtimestamp(int(new_end_ts))
+        new_end_str = dt_new.strftime("%d.%m %H:%M")
+    except Exception:
+        new_end_str = "??:??"
+
+    if timer_item["is_local"]:
+        ok, statetext = _change_local_timer_end_raw(session, timer_item, new_end_ts)
+        if ok:
+            msg = "Aufnahmeende geändert (%s):\n%s\nNeues Ende: %s" % (
+                timer_item["box_name"],
+                timer_item["name"],
+                new_end_str,
+            )
+            session.openWithCallback(
+                lambda _res: open_combined_timers(session),
+                MessageBox,
+                msg,
+                MessageBox.TYPE_INFO,
+                timeout=3,
+            )
+        else:
+            msg = "Fehler beim Ändern der lokalen Endzeit:\n%s" % statetext
+            session.openWithCallback(
+                lambda _res: open_combined_timers(session),
+                MessageBox,
+                msg,
+                MessageBox.TYPE_ERROR,
+                timeout=6,
+            )
+        return
+
+    box = timer_item["box"]
+    try:
+        state_ok, statetext = _change_remote_timer_end_raw(box, timer_item, new_end_ts)
+        sync_timer_cache_async()
+        if state_ok:
+            msg = "Aufnahmeende geändert (%s):\n%s\nNeues Ende: %s" % (
+                box["name"],
+                timer_item["name"],
+                new_end_str,
+            )
+            session.openWithCallback(
+                lambda _res: open_combined_timers(session),
+                MessageBox,
+                msg,
+                MessageBox.TYPE_INFO,
+                timeout=3,
+            )
+        else:
+            msg = "Box %s lehnte das Ändern der Endzeit ab:\n%s" % (box["name"], statetext)
+            session.openWithCallback(
+                lambda _res: open_combined_timers(session),
+                MessageBox,
+                msg,
+                MessageBox.TYPE_ERROR,
+                timeout=6,
+            )
+    except urllib.error.HTTPError as e:
+        msg = "HTTP-Fehler beim Ändern auf %s: %s" % (box["name"], e.code)
+        session.openWithCallback(
+            lambda _res: open_combined_timers(session),
+            MessageBox,
+            msg,
+            MessageBox.TYPE_ERROR,
+            timeout=6,
+        )
+    except urllib.error.URLError as e:
+        msg = "Verbindung zu %s fehlgeschlagen:\n%s" % (box["name"], e.reason)
+        session.openWithCallback(
+            lambda _res: open_combined_timers(session),
+            MessageBox,
+            msg,
+            MessageBox.TYPE_ERROR,
+            timeout=6,
+        )
+    except Exception as e:
+        msg = "Fehler beim Ändern der Endzeit (%s):\n%s" % (box["name"], str(e))
+        session.openWithCallback(
+            lambda _res: open_combined_timers(session),
+            MessageBox,
+            msg,
+            MessageBox.TYPE_ERROR,
+            timeout=6,
+        )
+
+
+def _find_next_waiting_timer_on_same_box(timer_item, all_timers):
+    best_t = None
+    for t in all_timers:
+        if t is timer_item:
+            continue
+        if t.get("disabled") == "1":
+            continue
+        if t.get("state") not in ("0", "1"):
+            continue
+        # Pruefung auf denselben Receiver
+        if timer_item["is_local"]:
+            if not t["is_local"]:
+                continue
+        else:
+            if t["is_local"]:
+                continue
+            b1 = timer_item.get("box")
+            b2 = t.get("box")
+            if not b1 or not b2:
+                continue
+            if b1.get("ip") != b2.get("ip") or b1.get("port") != b2.get("port"):
+                continue
+        if int(t["begin"]) > int(timer_item["begin"]):
+            if best_t is None or int(t["begin"]) < int(best_t["begin"]):
+                best_t = t
+    return best_t
 
 
 def _stop_remote_timer_raw(box, timer_item):
@@ -2084,6 +2399,51 @@ def open_combined_timers(session, **kwargs):
             open_setup_screen(session, callback=lambda _saved: open_combined_timers(session))
             return
 
+        if cmd == "CHANGE_END":
+            if (
+                not isinstance(selected, dict)
+                or selected.get("disabled") == "1"
+                or selected.get("state") not in ("0", "1", "2")
+            ):
+                session.openWithCallback(
+                    lambda _res: open_combined_timers(session),
+                    MessageBox,
+                    "Das Ende kann nur bei laufenden oder wartenden Timern geändert werden.",
+                    MessageBox.TYPE_INFO,
+                    timeout=3,
+                )
+                return
+
+            t_item = selected
+            next_t = _find_next_waiting_timer_on_same_box(t_item, all_timers)
+            max_end_ts = (int(next_t["begin"]) - 60) if next_t else None
+            next_info = ""
+            if next_t:
+                try:
+                    dt_next = datetime.fromtimestamp(int(next_t["begin"]))
+                    next_info = "Nächster wartender auf [%s]: %s (%s)" % (
+                        t_item["tag"],
+                        dt_next.strftime("%d.%m %H:%M"),
+                        next_t["name"],
+                    )
+                except Exception:
+                    next_info = ""
+
+            def on_end_changed(new_end_ts):
+                if new_end_ts is None:
+                    open_combined_timers(session)
+                    return
+                change_any_timer_end(session, t_item, new_end_ts)
+
+            session.openWithCallback(
+                on_end_changed,
+                ChangeTimerEndScreen,
+                t_item,
+                max_end_ts=max_end_ts,
+                next_timer_info=next_info,
+            )
+            return
+
         if cmd == "STOP_REC":
             if not isinstance(selected, dict) or selected.get("state") != "2":
                 session.openWithCallback(
@@ -2262,6 +2622,88 @@ def install_epg_hook():
         _EPG_HOOKED = True
 
 
+def _patch_live_rec_method(cls, method_name):
+    if cls is None or not hasattr(cls, method_name):
+        return False
+
+    orig_method = getattr(cls, method_name)
+    if getattr(orig_method, "_rts_live_patched", False):
+        return True
+
+    def wrapped_live_rec(self, *args, **kwargs):
+        global _BYPASS_LIVE_REC
+        if _BYPASS_LIVE_REC or not is_live_rec_selector_enabled():
+            return orig_method(self, *args, **kwargs)
+
+        def call_orig():
+            global _BYPASS_LIVE_REC
+            _BYPASS_LIVE_REC = True
+            try:
+                return orig_method(self, *args, **kwargs)
+            finally:
+                _BYPASS_LIVE_REC = False
+
+        try:
+            event, service = get_current_live_event(self.session)
+            if event is not None and service is not None:
+                open_box_selector(
+                    self.session,
+                    event,
+                    service,
+                    local_callback=call_orig,
+                )
+                return
+        except Exception:
+            pass
+        return call_orig()
+
+    wrapped_live_rec._rts_live_patched = True
+    setattr(cls, method_name, wrapped_live_rec)
+    return True
+
+
+def install_live_rec_hook():
+    global _LIVE_REC_HOOKED
+    if _LIVE_REC_HOOKED:
+        return
+
+    try:
+        mod = __import__("Screens.InfoBarGenerics", fromlist=["InfoBarInstantRecord"])
+        cls = getattr(mod, "InfoBarInstantRecord", None)
+        if cls is None:
+            return
+
+        target_methods = ("keyInstantRecord", "instantRecord")
+        patched_any = False
+        for m_name in target_methods:
+            if _patch_live_rec_method(cls, m_name):
+                patched_any = True
+
+        # Aktualisierung der bereits laufenden InfoBar-Instanz (vor WHERE_SESSIONSTART erstellt)
+        try:
+            ib_mod = __import__("Screens.InfoBar", fromlist=["InfoBar"])
+            ib_cls = getattr(ib_mod, "InfoBar", None)
+            ib_inst = getattr(ib_cls, "instance", None) if ib_cls is not None else None
+            if ib_inst is not None:
+                for m_name in target_methods:
+                    bound_wrapped = getattr(ib_inst, m_name, None)
+                    if bound_wrapped is None:
+                        continue
+                    for key in list(ib_inst.keys()):
+                        act_map = ib_inst[key]
+                        if hasattr(act_map, "actions") and isinstance(act_map.actions, dict):
+                            for a_key, a_val in list(act_map.actions.items()):
+                                if a_key == m_name or getattr(a_val, "__name__", "") == m_name:
+                                    act_map.actions[a_key] = bound_wrapped
+        except Exception:
+            pass
+
+        if patched_any:
+            _LIVE_REC_HOOKED = True
+    except Exception:
+        pass
+
+
 def _wrap_epg_builder(orig_fn):
     try:
         sig = inspect.signature(orig_fn)
@@ -2386,6 +2828,7 @@ def start_cache_timer():
 def on_session_start(reason, **kwargs):
     if reason == 0:
         install_epg_hook()
+        install_live_rec_hook()
         install_epg_list_marks_hook()
         sync_timer_cache_async()
         start_cache_timer()
