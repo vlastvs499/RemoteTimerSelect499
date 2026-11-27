@@ -103,6 +103,8 @@ killall -9 enigma2
   * **BLUE:** Change the end time of an active or waiting timer (`LEFT/RIGHT` = ±1 min, `UP/DOWN` = ±5 min).
 
   * **YELLOW / MENU:** Open box setup.
+ 
+  > **Tip:** I recommend setting Box selector on REC button (Live TV) to Yes (go to Plugins → Remote Timers - Settings → Box selector on REC button (Live TV)). This will make all recording controls unified, including local recordings.
 
 ## Changelog
 
