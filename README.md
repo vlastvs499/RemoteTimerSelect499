@@ -92,7 +92,7 @@ killall -9 enigma2
 
 * **EPG:** Highlight any program and press **REC** to schedule or cancel a timer on any configured box.
 
-* **Live TV (optional):** If enabled in the partner box settings, pressing **REC** opens this plugin's receivers selector with the list of remote boxes. If the **"Box selector on REC button (live TV)"** option is disabled, the box selector does not open and the receiver behaves in the classic OpenATV way.
+* **Live TV (optional):** If enabled in the partner box settings, pressing **REC** opens this plugin's receivers selector with the list of remote boxes. If the **"Box selector on REC button (live TV)"** option is disabled, the box selector does not open and the receiver behaves in the classic OpenATV way. You can configure this item in the plugin settings, where you enter the IP addresses of the receivers. It's at the top.
 
 * **All Timers (`Menu → All Timers`):**
 
