@@ -117,3 +117,7 @@ killall -9 enigma2
 * **Upcoming planned REC alert:** If you want to insert a preceding timer on a receiver, it will warn you if the upcoming timer starts recording in less than 100 minutes (Plan. REC in: X min).
 
 * **Sleeping HDD spin-up handling:** Background timer creation with extended timeouts and a *Connecting (spinning up disk)...* notification to prevent freezes/timeouts on spun-down drives.
+
+* ### 2026-11-27
+- Defined REC button behavior when enabled in Remote Timer Settings.
+- Fixed Stop REC when stopping a local recording with the REC button option enabled in Remote Timer Settings.
