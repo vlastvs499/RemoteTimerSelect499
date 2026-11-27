@@ -177,7 +177,7 @@ class RemoteTimerSetupScreen(ConfigListScreen, Screen):
                 "Po kolika dnech automaticky mazat hotové a selhané časovače (0 = vypnuto).",
             ),
             (
-                getConfigListEntry("Výběr boxu tlačítkem REC (živé TV)", cfg.live_rec_selector),
+                getConfigListEntry("Výběr boxu i tlačítkem REC (doporučeno Ano)", cfg.live_rec_selector),
                 "Při stisku REC při sledování TV otevře výběr přijímače (vypnuto = klasické chování OpenATV).",
             ),
         ]
