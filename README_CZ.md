@@ -9,7 +9,7 @@ Plánujte, prohlížejte a spravujte časovače na svém lokálním přijímači
 
 * **Nahrávání z EPG a volitelně ze živého vysílání:** Stisknutím **REC v EPG** (nebo volitelně při sledování živého TV vysílání) vyberete lokální či vzdálený přijímač, nastavíte posun před/za pořadem, zapnete **Nekonečné nahrávání**, případně zrušíte již existující časovač.
 
-* **Zobrazení stavu přijímačů ve výběru:** Přijímače, které právě nahrávají, jsou zvýrazněny **červeně** (`REC do: 19:00` nebo `REC do: ∞` v případě nekonečného nahrávání). Přijímače s plánovaným časovačem do 100 minut jsou zde zvýrazněny **žlutě** (`Plán. REC za: 45 min`). Tím se předejde jejich výběru a zrušení zamýšleného nahrávání na další obrazovce kvůli překryvu pořadů na různých stanicích. 
+* **Zobrazení stavu přijímačů ve výběru:** Přijímače, které právě nahrávají, jsou zvýrazněny **červeně** (`REC do: 19:00` nebo `REC do: ∞` v případě nekonečného nahrávání). Přijímače s plánovaným časovačem, který bude zahájen do 100 minut od okamžiku zobrazení, jsou zde zvýrazněny **žlutě** (`Plán. REC za: 45 min`). Tím se předejde jejich výběru a zrušení zamýšleného nahrávání na další obrazovce kvůli překryvu pořadů na různých stanicích. 
 
 * **Značky časovačů přímo v EPG:** Naplánované pořady jsou v seznamu EPG automaticky označeny vlastní značkou přijímače, který bude záznam provádět (např. `[L]`, `[M]`, `[V]`). Ta se nastavuje v nastavení, kde se zadávají vzdálené přijímače v MENU/Časovače/Nastavení vzdálených časovačů. Toto nastavení je i v seznamu pluginů.
 
