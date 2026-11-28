@@ -52,6 +52,9 @@ CACHE_REFRESH_SEC = 300
 TIMER_LIST_FONT_FHD = 42
 TIMER_LIST_FONT_HD = 30
 
+# Barva celeho radku v EPG pro oznacene porady (zluta)
+EPG_MARK_COLOR = 0x00FFCC33
+
 _EPG_HOOKED = False
 _EPG_LIST_HOOKED = False
 _LIVE_REC_HOOKED = False
@@ -159,26 +162,26 @@ class RemoteTimerSetupScreen(ConfigListScreen, Screen):
     def __init__(self, session):
         Screen.__init__(self, session)
         self.skinName = ["Setup"]
-        self.setTitle("Nastavení vzdálených časovačů")
+        self.setTitle("Remote-Timer Einstellungen")
 
-        self["key_red"] = StaticText("Zrušit")
-        self["key_green"] = StaticText("Uložit")
-        self["footnote"] = StaticText("OK = klávesnice pro text   |   Zelená = uložit")
+        self["key_red"] = StaticText("Abbrechen")
+        self["key_green"] = StaticText("Speichern")
+        self["footnote"] = StaticText("OK = Tastatur für Text   |   Grün = Speichern")
         self["description"] = StaticText("")
 
         cfg = config.plugins.remotetimerselect
         self.list = [
             (
-                getConfigListEntry("Označení tohoto přijímače (max. 2 znaky)", cfg.local_tag),
-                "Krátká značka (max. 2 znaky) v EPG a přehledu časovačů pro tento lokální přijímač (výchozí: L).",
+                getConfigListEntry("Kennung dieses Receivers (max. 2 Zeichen)", cfg.local_tag),
+                "Kurze Kennung (max. 2 Zeichen) im EPG und in der Timer-Übersicht für diesen lokalen Receiver (Standard: L).",
             ),
             (
-                getConfigListEntry("Auto-mazání hotových/selhaných (dny)", cfg.auto_cleanup_days),
-                "Po kolika dnech automaticky mazat hotové a selhané časovače (0 = vypnuto).",
+                getConfigListEntry("Auto-Löschen fertiger/fehlgeschlagener (Tage)", cfg.auto_cleanup_days),
+                "Nach wie vielen Tagen fertige und fehlgeschlagene Timer automatisch gelöscht werden (0 = aus).",
             ),
             (
-                getConfigListEntry("Výběr boxu i tlačítkem REC (doporučeno Ano)", cfg.live_rec_selector),
-                "Při stisku REC při sledování TV otevře výběr přijímače (vypnuto = klasické chování OpenATV).",
+                getConfigListEntry("Box-Auswahl auch mit REC-Taste (empfohlen: Ja)", cfg.live_rec_selector),
+                "Öffnet beim Drücken von REC im Live-TV die Receiver-Auswahl (Aus = klassisches OpenATV-Verhalten).",
             ),
         ]
 
@@ -186,38 +189,38 @@ class RemoteTimerSetupScreen(ConfigListScreen, Screen):
             b_cfg = getattr(cfg, "box%d" % idx)
             self.list.append(
                 (
-                    getConfigListEntry("Box %d - Název přijímače" % idx, b_cfg.name),
-                    "Název %d. vzdáleného boxu v nabídce a hláškách (např. Obývák nebo SF8008)." % idx,
+                    getConfigListEntry("Box %d - Receiver-Name" % idx, b_cfg.name),
+                    "Name der %d. entfernten Box in der Auswahl und in Meldungen (z. B. Wohnzimmer oder SF8008)." % idx,
                 )
             )
             self.list.append(
                 (
-                    getConfigListEntry("Box %d - Označení (značka)" % idx, b_cfg.tag),
-                    "Krátká značka v EPG a časovačích pro %d. box (např. M, V, B%d)." % (idx, idx),
+                    getConfigListEntry("Box %d - Kennung (Tag)" % idx, b_cfg.tag),
+                    "Kurze Kennung im EPG und in den Timern für die %d. Box (z. B. M, V, B%d)." % (idx, idx),
                 )
             )
             self.list.append(
                 (
-                    getConfigListEntry("Box %d - IP adresa (0.0.0.0 = vypnuto)" % idx, b_cfg.ip),
-                    "IP adresa %d. boxu v místní síti (čísly na ovladači). 0.0.0.0 = nepoužívá se." % idx,
+                    getConfigListEntry("Box %d - IP-Adresse (0.0.0.0 = aus)" % idx, b_cfg.ip),
+                    "IP-Adresse der %d. Box im lokalen Netzwerk (Zifferntasten). 0.0.0.0 = nicht verwendet." % idx,
                 )
             )
             self.list.append(
                 (
-                    getConfigListEntry("Box %d - HTTP port OpenWebif" % idx, b_cfg.port),
-                    "HTTP port rozhraní OpenWebif na %d. boxu (výchozí je 80)." % idx,
+                    getConfigListEntry("Box %d - OpenWebif HTTP-Port" % idx, b_cfg.port),
+                    "HTTP-Port von OpenWebif auf der %d. Box (Standard ist 80)." % idx,
                 )
             )
             self.list.append(
                 (
-                    getConfigListEntry("Box %d - Uživatel OpenWebif" % idx, b_cfg.user),
-                    "Uživatelské jméno pro OpenWebif (nech prázdné, pokud není zapnuté heslo).",
+                    getConfigListEntry("Box %d - OpenWebif Benutzer" % idx, b_cfg.user),
+                    "Benutzername für OpenWebif (leer lassen, wenn kein Passwort aktiv ist).",
                 )
             )
             self.list.append(
                 (
-                    getConfigListEntry("Box %d - Heslo OpenWebif" % idx, b_cfg.password),
-                    "Heslo pro OpenWebif na %d. boxu (nech prázdné, pokud není vyžadováno)." % idx,
+                    getConfigListEntry("Box %d - OpenWebif Passwort" % idx, b_cfg.password),
+                    "Passwort für OpenWebif auf der %d. Box (leer lassen, wenn nicht erforderlich)." % idx,
                 )
             )
 
@@ -413,11 +416,11 @@ class BoxSelectorScreen(Screen):
     def _format_cancel_row_text(self):
         t = self.cancel_timers[self.cancel_idx]
         if len(self.cancel_timers) > 1:
-            return "<<< Zrušit časovač: %s (%s) >>>" % (
+            return "<<< Timer abbrechen: %s (%s) >>>" % (
                 t["box_name"],
                 t["tag"],
             )
-        return ">>> Zrušit časovač: %s (%s) <<<" % (t["box_name"], t["tag"])
+        return ">>> Timer abbrechen: %s (%s) <<<" % (t["box_name"], t["tag"])
 
     def _make_entry(self, left_txt, right_txt, color, payload):
         flags_l = RT_HALIGN_LEFT | RT_VALIGN_CENTER
@@ -548,12 +551,12 @@ class BoxSelectorScreen(Screen):
 
 def _state_color(state_txt):
     colors = {
-        "Nahrává": 0x00FF6666,
-        "Čeká": 0x0077DD77,
-        "Hotovo": 0x0088CCFF,
-        "Selhalo": 0x00FFAA44,
-        "Příprava": 0x00FFEE66,
-        "Vypnuto": 0x00999999,
+        "Aufnahme": 0x00FF6666,
+        "Wartet": 0x0077DD77,
+        "Fertig": 0x0088CCFF,
+        "Fehlgeschlagen": 0x00FFAA44,
+        "Vorbereitung": 0x00FFEE66,
+        "Deaktiviert": 0x00999999,
     }
     return colors.get(state_txt, None)
 
@@ -598,14 +601,14 @@ def _build_timer_entry(timer_item, is_fhd, item_h, blink_hide=False):
     # Poradi sloupcu: 1. Datum a cas, 2. Stav, 3. Znacka prijimace, 4. Kanal | Nazev poradu
     if is_fhd:
         col1_x, col1_w = 5, 355
-        col2_x, col2_w = 370, 225
-        col3_x, col3_w = 605, 135
-        col4_x, col4_w = 750, 1015
+        col2_x, col2_w = 370, 265
+        col3_x, col3_w = 645, 135
+        col4_x, col4_w = 790, 975
     else:
         col1_x, col1_w = 5, 250
-        col2_x, col2_w = 260, 165
-        col3_x, col3_w = 430, 95
-        col4_x, col4_w = 530, 655
+        col2_x, col2_w = 260, 195
+        col3_x, col3_w = 460, 95
+        col4_x, col4_w = 560, 625
 
     return [
         timer_item,
@@ -644,7 +647,7 @@ def _build_timer_entry(timer_item, is_fhd, item_h, blink_hide=False):
 class CombinedTimersScreen(Screen):
     def __init__(self, session, title, rows_spec):
         Screen.__init__(self, session)
-        self.setTitle("Všechny časovače")
+        self.setTitle("Alle Timer")
         self.rows_spec = rows_spec
         self._blink_hidden = False
         self._blink_timer = None
@@ -662,16 +665,16 @@ class CombinedTimersScreen(Screen):
             item_h = int(font_sz * 1.42)
             rows_h = (840 // item_h) * item_h
             self.skin = (
-                '<screen name="CombinedTimersScreen" position="50,55" size="1820,970" title="Všechny časovače">'
+                '<screen name="CombinedTimersScreen" position="50,55" size="1820,970" title="Alle Timer">'
                 '<widget source="title_text" render="Label" position="25,15" size="1770,50" font="Regular;34" foregroundColor="#00ffcc33" noWrap="1" />'
                 '<widget name="list" position="25,75" size="1770,%d" font="Regular;%d" itemHeight="%d" scrollbarMode="showOnDemand" enableWrapAround="1" />'
-                '<widget source="hint_ok" render="Label" position="25,922" size="190,38" font="Regular;26" foregroundColor="#00aaaaaa" noWrap="1" />'
-                '<widget source="hint_red" render="Label" position="215,922" size="130,38" font="Regular;26" foregroundColor="#00ff5555" noWrap="1" />'
-                '<widget source="hint_stop" render="Label" position="345,922" size="175,38" font="Regular;26" foregroundColor="#00aaaaaa" noWrap="1" />'
-                '<widget source="hint_yellow" render="Label" position="520,922" size="95,38" font="Regular;26" foregroundColor="#00ffdd33" noWrap="1" />'
-                '<widget source="hint_setup" render="Label" position="615,922" size="225,38" font="Regular;26" foregroundColor="#00aaaaaa" noWrap="1" />'
-                '<widget source="hint_blue" render="Label" position="840,922" size="105,38" font="Regular;26" foregroundColor="#0055aaff" noWrap="1" />'
-                '<widget source="hint_rest" render="Label" position="945,922" size="850,38" font="Regular;26" foregroundColor="#00aaaaaa" noWrap="1" />'
+                '<widget source="hint_ok" render="Label" position="25,922" size="215,38" font="Regular;26" foregroundColor="#00aaaaaa" noWrap="1" />'
+                '<widget source="hint_red" render="Label" position="240,922" size="75,38" font="Regular;26" foregroundColor="#00ff5555" noWrap="1" />'
+                '<widget source="hint_stop" render="Label" position="315,922" size="175,38" font="Regular;26" foregroundColor="#00aaaaaa" noWrap="1" />'
+                '<widget source="hint_yellow" render="Label" position="490,922" size="85,38" font="Regular;26" foregroundColor="#00ffdd33" noWrap="1" />'
+                '<widget source="hint_setup" render="Label" position="575,922" size="240,38" font="Regular;26" foregroundColor="#00aaaaaa" noWrap="1" />'
+                '<widget source="hint_blue" render="Label" position="815,922" size="90,38" font="Regular;26" foregroundColor="#0055aaff" noWrap="1" />'
+                '<widget source="hint_rest" render="Label" position="905,922" size="890,38" font="Regular;26" foregroundColor="#00aaaaaa" noWrap="1" />'
                 "</screen>"
             ) % (rows_h, font_sz, item_h)
         else:
@@ -679,16 +682,16 @@ class CombinedTimersScreen(Screen):
             item_h = int(font_sz * 1.40)
             rows_h = (546 // item_h) * item_h
             self.skin = (
-                '<screen name="CombinedTimersScreen" position="30,35" size="1220,650" title="Všechny časovače">'
+                '<screen name="CombinedTimersScreen" position="30,35" size="1220,650" title="Alle Timer">'
                 '<widget source="title_text" render="Label" position="15,10" size="1190,36" font="Regular;24" foregroundColor="#00ffcc33" noWrap="1" />'
                 '<widget name="list" position="15,52" size="1190,%d" font="Regular;%d" itemHeight="%d" scrollbarMode="showOnDemand" enableWrapAround="1" />'
-                '<widget source="hint_ok" render="Label" position="15,606" size="135,32" font="Regular;18" foregroundColor="#00aaaaaa" noWrap="1" />'
-                '<widget source="hint_red" render="Label" position="150,606" size="92,32" font="Regular;18" foregroundColor="#00ff5555" noWrap="1" />'
-                '<widget source="hint_stop" render="Label" position="242,606" size="122,32" font="Regular;18" foregroundColor="#00aaaaaa" noWrap="1" />'
-                '<widget source="hint_yellow" render="Label" position="364,606" size="68,32" font="Regular;18" foregroundColor="#00ffdd33" noWrap="1" />'
-                '<widget source="hint_setup" render="Label" position="432,606" size="160,32" font="Regular;18" foregroundColor="#00aaaaaa" noWrap="1" />'
-                '<widget source="hint_blue" render="Label" position="592,606" size="76,32" font="Regular;18" foregroundColor="#0055aaff" noWrap="1" />'
-                '<widget source="hint_rest" render="Label" position="668,606" size="540,32" font="Regular;18" foregroundColor="#00aaaaaa" noWrap="1" />'
+                '<widget source="hint_ok" render="Label" position="15,606" size="150,32" font="Regular;18" foregroundColor="#00aaaaaa" noWrap="1" />'
+                '<widget source="hint_red" render="Label" position="165,606" size="55,32" font="Regular;18" foregroundColor="#00ff5555" noWrap="1" />'
+                '<widget source="hint_stop" render="Label" position="220,606" size="122,32" font="Regular;18" foregroundColor="#00aaaaaa" noWrap="1" />'
+                '<widget source="hint_yellow" render="Label" position="342,606" size="60,32" font="Regular;18" foregroundColor="#00ffdd33" noWrap="1" />'
+                '<widget source="hint_setup" render="Label" position="402,606" size="170,32" font="Regular;18" foregroundColor="#00aaaaaa" noWrap="1" />'
+                '<widget source="hint_blue" render="Label" position="572,606" size="65,32" font="Regular;18" foregroundColor="#0055aaff" noWrap="1" />'
+                '<widget source="hint_rest" render="Label" position="637,606" size="570,32" font="Regular;18" foregroundColor="#00aaaaaa" noWrap="1" />'
                 "</screen>"
             ) % (rows_h, font_sz, item_h)
 
@@ -696,13 +699,13 @@ class CombinedTimersScreen(Screen):
         mc_entries = self._build_entries(blink_hide=False)
 
         self["title_text"] = StaticText(title)
-        self["hint_ok"] = StaticText("OK = smazat  |")
-        self["hint_red"] = StaticText("ČERVENÁ")
-        self["hint_stop"] = StaticText("= stop REC  |")
-        self["hint_yellow"] = StaticText("ŽLUTÁ")
-        self["hint_setup"] = StaticText("/ MENU = boxy  |")
-        self["hint_blue"] = StaticText("MODRÁ")
-        self["hint_rest"] = StaticText("= Změna konce REC  |  EXIT = zavřít")
+        self["hint_ok"] = StaticText("OK = löschen  |")
+        self["hint_red"] = StaticText("ROT")
+        self["hint_stop"] = StaticText("= REC stop  |")
+        self["hint_yellow"] = StaticText("GELB")
+        self["hint_setup"] = StaticText("/ MENÜ = Boxen  |")
+        self["hint_blue"] = StaticText("BLAU")
+        self["hint_rest"] = StaticText("= REC-Ende ändern  |  EXIT = schließen")
         self["list"] = MenuList(
             mc_entries,
             enableWrapAround=True,
@@ -799,7 +802,7 @@ class CombinedTimersScreen(Screen):
 class ChangeTimerEndScreen(Screen):
     def __init__(self, session, timer_item, max_end_ts=None, next_timer_info=""):
         Screen.__init__(self, session)
-        self.setTitle("Změna konce REC")
+        self.setTitle("REC-Ende ändern")
         self.timer_item = timer_item
         self.orig_end = int(timer_item["end"])
         self.cur_end = self.orig_end
@@ -837,7 +840,7 @@ class ChangeTimerEndScreen(Screen):
         inner_w = win_w - (2 * pad_x)
 
         self.skin = (
-            '<screen name="ChangeTimerEndScreen" position="%d,%d" size="%d,%d" title="Změna konce REC">'
+            '<screen name="ChangeTimerEndScreen" position="%d,%d" size="%d,%d" title="REC-Ende ändern">'
             '<widget source="title_lbl" render="Label" position="%d,%d" size="%d,%d" font="Regular;%d" foregroundColor="#00ffcc33" noWrap="1" />'
             '<widget source="info_lbl" render="Label" position="%d,%d" size="%d,%d" font="Regular;%d" foregroundColor="#00cccccc" noWrap="1" />'
             '<widget source="time_lbl" render="Label" position="%d,%d" size="%d,%d" font="Regular;%d" foregroundColor="#00ffffff" halign="center" noWrap="1" />'
@@ -854,7 +857,7 @@ class ChangeTimerEndScreen(Screen):
         )
 
         self["title_lbl"] = StaticText(
-            "Změna konce REC [%s]: %s" % (timer_item["tag"], timer_item["name"])
+            "REC-Ende ändern [%s]: %s" % (timer_item["tag"], timer_item["name"])
         )
         try:
             dt_b = datetime.fromtimestamp(int(timer_item["begin"]))
@@ -862,12 +865,12 @@ class ChangeTimerEndScreen(Screen):
         except Exception:
             begin_str = "??:??"
         self["info_lbl"] = StaticText(
-            "%s  |  Začátek: %s" % (timer_item["sname"], begin_str)
+            "%s  |  Start: %s" % (timer_item["sname"], begin_str)
         )
         self["time_lbl"] = StaticText("")
         self["limit_lbl"] = StaticText(next_timer_info)
         self["hint_lbl"] = StaticText(
-            "VLEVO/VPRAVO = ±1 min  |  NAHORU/DOLŮ = ±5 min  |  OK = uložit  |  EXIT = zrušit"
+            "LINKS/RECHTS = ±1 Min.  |  HOCH/RUNTER = ±5 Min.  |  OK = speichern  |  EXIT = abbrechen"
         )
 
         self["actions"] = ActionMap(
@@ -895,12 +898,12 @@ class ChangeTimerEndScreen(Screen):
             end_str = "??:??"
         diff_min = (self.cur_end - self.orig_end) // 60
         if diff_min > 0:
-            diff_str = " (+%d min)" % diff_min
+            diff_str = " (+%d Min.)" % diff_min
         elif diff_min < 0:
-            diff_str = " (%d min)" % diff_min
+            diff_str = " (%d Min.)" % diff_min
         else:
-            diff_str = " (beze změny)"
-        self["time_lbl"].setText("Nový konec: %s%s" % (end_str, diff_str))
+            diff_str = " (unverändert)"
+        self["time_lbl"].setText("Neues Ende: %s%s" % (end_str, diff_str))
 
     def _shift_minutes(self, delta_min):
         new_ts = self.cur_end + (delta_min * 60)
@@ -909,7 +912,7 @@ class ChangeTimerEndScreen(Screen):
             self._refresh_display()
             self.session.open(
                 MessageBox,
-                "POZOR! Dosáhl jste času začátku čekajícího nahrávání!!!",
+                "ACHTUNG! Sie haben die Startzeit einer wartenden Aufnahme erreicht!!!",
                 MessageBox.TYPE_WARNING,
                 timeout=5,
             )
@@ -933,8 +936,8 @@ class RemoteTimerMarginScreen(ConfigListScreen, Screen):
     def __init__(self, session, box, timer_data, default_before, default_after, existing_timer=None):
         Screen.__init__(self, session)
         self.existing_timer = existing_timer
-        box_title = box["name"] if box is not None else "Tento přijímač"
-        win_title = "Posun času (%s)" % box_title
+        box_title = box["name"] if box is not None else "Dieser Receiver"
+        win_title = "Zeitversatz (%s)" % box_title
         self.setTitle(win_title)
 
         desktop_w = 1920
@@ -958,7 +961,7 @@ class RemoteTimerMarginScreen(ConfigListScreen, Screen):
                 '<widget name="config" position="%d,125" size="%d,220" font="Regular;30" itemHeight="52" scrollbarMode="showOnDemand" enableWrapAround="1" />'
                 '<widget source="description" render="Label" position="%d,365" size="%d,175" font="Regular;26" foregroundColor="#00dddddd" />'
                 '<widget source="key_red" render="Label" position="%d,555" size="270,42" font="Regular;28" foregroundColor="#00ff5555" noWrap="1" />'
-                '<widget source="key_green" render="Label" position="%d,555" size="240,42" font="Regular;28" foregroundColor="#0055ff55" noWrap="1" />'
+                '<widget source="key_green" render="Label" position="%d,555" size="260,42" font="Regular;28" foregroundColor="#0055ff55" noWrap="1" />'
                 '<widget source="footnote" render="Label" position="%d,558" size="%d,38" font="Regular;24" foregroundColor="#00aaaaaa" halign="right" noWrap="1" />'
                 "</screen>"
             ) % (
@@ -973,7 +976,7 @@ class RemoteTimerMarginScreen(ConfigListScreen, Screen):
                 pad_x, inner_w,
                 pad_x,
                 pad_x + 280,
-                pad_x + 530, inner_w - 530,
+                pad_x + 550, inner_w - 550,
             )
         else:
             win_w, win_h = 960, 440
@@ -986,7 +989,7 @@ class RemoteTimerMarginScreen(ConfigListScreen, Screen):
                 '<widget name="config" position="%d,88" size="%d,156" font="Regular;21" itemHeight="38" scrollbarMode="showOnDemand" enableWrapAround="1" />'
                 '<widget source="description" render="Label" position="%d,258" size="%d,125" font="Regular;18" foregroundColor="#00dddddd" />'
                 '<widget source="key_red" render="Label" position="%d,394" size="190,30" font="Regular;20" foregroundColor="#00ff5555" noWrap="1" />'
-                '<widget source="key_green" render="Label" position="%d,394" size="170,30" font="Regular;20" foregroundColor="#0055ff55" noWrap="1" />'
+                '<widget source="key_green" render="Label" position="%d,394" size="185,30" font="Regular;20" foregroundColor="#0055ff55" noWrap="1" />'
                 '<widget source="footnote" render="Label" position="%d,396" size="%d,28" font="Regular;17" foregroundColor="#00aaaaaa" halign="right" noWrap="1" />'
                 "</screen>"
             ) % (
@@ -1001,19 +1004,19 @@ class RemoteTimerMarginScreen(ConfigListScreen, Screen):
                 pad_x, inner_w,
                 pad_x,
                 pad_x + 200,
-                pad_x + 380, inner_w - 380,
+                pad_x + 395, inner_w - 395,
             )
 
         self["title_lbl"] = StaticText(win_title)
         self["event_lbl"] = StaticText(timer_data["name"])
-        red_label = "ČERVENÁ = Stop REC" if self.existing_timer is not None else "ČERVENÁ = Zrušit"
+        red_label = "ROT = Stop REC" if self.existing_timer is not None else "ROT = Abbrechen"
         self["key_red"] = StaticText(red_label)
-        self["key_green"] = StaticText("ZELENÁ = Nahrát")
-        self["footnote"] = StaticText("VLEVO/VPRAVO = změna  |  OK = nahrát")
+        self["key_green"] = StaticText("GRÜN = Aufnehmen")
+        self["footnote"] = StaticText("LINKS/RECHTS = ändern  |  OK = aufnehmen")
         self["description"] = StaticText(
-            "Pokud jste v seznamu záznamů v jiné složce, než je zadána jako výchozí pro záznam, "
-            "na posledním řádku máte možnost okamžité změny složky pro záznam šipkami doleva/doprava. "
-            "Vždy je k dispozici výchozí složka, nebo ta, ve které aktuálně jste."
+            "Wenn Sie sich in der Aufnahmeliste in einem anderen Ordner als dem Standard-Aufnahmeordner befinden, "
+            "können Sie in der letzten Zeile mit Links/Rechts sofort den Aufnahmepfad wechseln. "
+            "Es stehen immer der Standardordner sowie der aktuell geöffnete Ordner zur Auswahl."
         )
 
         val_before = max(0, min(120, int(default_before)))
@@ -1028,21 +1031,21 @@ class RemoteTimerMarginScreen(ConfigListScreen, Screen):
             if local_locs:
                 loc_choices = [(p, p) for p in local_locs]
             else:
-                loc_choices = [("", "Výchozí cesta přijímače")]
+                loc_choices = [("", "Standardpfad des Receivers")]
         else:
             cached_locs = get_cached_remote_locations(box)
             if cached_locs:
                 loc_choices = [(p, p) for p in cached_locs]
             else:
-                loc_choices = [("", "Automaticky (aktuální na boxu)")]
+                loc_choices = [("", "Automatisch (aktuell auf der Box)")]
                 sync_timer_cache_async()
         self.cfg_dirname = ConfigSelection(default=loc_choices[0][0], choices=loc_choices)
 
         self.list = [
-            getConfigListEntry("Posun před pořadem (min)", self.cfg_before),
-            getConfigListEntry("Posun za pořadem (min)", self.cfg_after),
-            getConfigListEntry("Nekonečné nahrávání", self.cfg_infinite),
-            getConfigListEntry("Cesta pro záznam", self.cfg_dirname),
+            getConfigListEntry("Vorlauf vor Sendung (Min.)", self.cfg_before),
+            getConfigListEntry("Nachlauf nach Sendung (Min.)", self.cfg_after),
+            getConfigListEntry("Endlosaufnahme", self.cfg_infinite),
+            getConfigListEntry("Aufnahmepfad", self.cfg_dirname),
         ]
 
         ConfigListScreen.__init__(self, self.list, session=session)
@@ -1240,7 +1243,7 @@ def _sync_timer_cache_worker():
                     continue
                 raw_sref = _xml_text(item, "e2servicereference")
                 sref = _normalize_sref(raw_sref)
-                name = _xml_text(item, "e2name", "Bez názvu")
+                name = _xml_text(item, "e2name", "Ohne Titel")
                 eit_str = _xml_text(item, "e2eit", "0")
                 begin_str = _xml_text(item, "e2timebegin", "0")
                 end_str = _xml_text(item, "e2timeend", "0")
@@ -1290,9 +1293,9 @@ def sync_timer_cache_async():
 def _format_until_time(end_ts):
     try:
         if int(end_ts) < 0:
-            return "REC do: \u221e"
+            return "REC bis: \u221e"
         dt = datetime.fromtimestamp(int(end_ts))
-        return "REC do: %d:%02d" % (dt.hour, dt.minute)
+        return "REC bis: %d:%02d" % (dt.hour, dt.minute)
     except Exception:
         return ""
 
@@ -1306,7 +1309,7 @@ def _format_plan_in_minutes(begin_ts):
         mins = max(1, (diff + 59) // 60)
         if mins >= 100:
             return ""
-        return "Plán. REC za: %d min" % mins
+        return "Gepl. REC in: %d Min." % mins
     except Exception:
         return ""
 
@@ -1504,13 +1507,13 @@ def find_matching_timers_for_event(session, service, event):
                         {
                             "is_local": True,
                             "box": None,
-                            "box_name": "Tento přijímač",
+                            "box_name": "Dieser Receiver",
                             "tag": l_tag,
                             "local_obj": t,
                             "sref": t_sref,
                             "begin": t_begin,
                             "end": t_end,
-                            "name": str(getattr(t, "name", "Bez názvu") or "Bez názvu"),
+                            "name": str(getattr(t, "name", "Ohne Titel") or "Ohne Titel"),
                         }
                     )
     except Exception:
@@ -1540,7 +1543,7 @@ def find_matching_timers_for_event(session, service, event):
                     "sref": t["raw_sref"],
                     "begin": t["begin"],
                     "end": t["end"],
-                    "name": t.get("name", "Bez názvu"),
+                    "name": t.get("name", "Ohne Titel"),
                 }
             )
 
@@ -1570,13 +1573,13 @@ def find_all_active_recording_timers(session):
                             {
                                 "is_local": True,
                                 "box": None,
-                                "box_name": "Tento přijímač",
+                                "box_name": "Dieser Receiver",
                                 "tag": l_tag,
                                 "local_obj": t,
                                 "sref": t_sref,
                                 "begin": t_begin,
                                 "end": t_end,
-                                "name": str(getattr(t, "name", "Bez názvu") or "Bez názvu"),
+                                "name": str(getattr(t, "name", "Ohne Titel") or "Ohne Titel"),
                             }
                         )
     except Exception:
@@ -1600,7 +1603,7 @@ def find_all_active_recording_timers(session):
                     "sref": t["raw_sref"],
                     "begin": t["begin"],
                     "end": t["end"],
-                    "name": t.get("name", "Bez názvu"),
+                    "name": t.get("name", "Ohne Titel"),
                 }
             )
 
@@ -1647,7 +1650,7 @@ def add_local_timer(
         if rec_timer is None:
             session.open(
                 MessageBox,
-                "Nepodařilo se získat RecordTimer tohoto přijímače.",
+                "RecordTimer dieses Receivers konnte nicht abgerufen werden.",
                 MessageBox.TYPE_ERROR,
                 timeout=6,
             )
@@ -1664,12 +1667,12 @@ def add_local_timer(
                     on_changed_callback()
                 except Exception:
                     pass
-            dir_info = local_dir if local_dir else "výchozí"
+            dir_info = local_dir if local_dir else "Standard"
             if infinite:
-                margin_info = "-%d min / nekonečné (\u221e)" % margin_before_min
+                margin_info = "-%d Min. / endlos (\u221e)" % margin_before_min
             else:
-                margin_info = "-%d / +%d min" % (margin_before_min, margin_after_min)
-            msg = "Časovač přidán na Tento přijímač (%s):\n%s\nCesta: %s" % (
+                margin_info = "-%d / +%d Min." % (margin_before_min, margin_after_min)
+            msg = "Timer hinzugefügt auf Dieser Receiver (%s):\n%s\nPfad: %s" % (
                 margin_info,
                 timer_data["name"],
                 dir_info,
@@ -1685,12 +1688,12 @@ def add_local_timer(
             except Exception:
                 pass
             c_txt = ("\n" + ", ".join(conflict_names)) if conflict_names else ""
-            msg = "Konflikt časovačů na tomto přijímači!%s" % c_txt
+            msg = "Timer-Konflikt auf diesem Receiver!%s" % c_txt
             session.open(MessageBox, msg, MessageBox.TYPE_ERROR, timeout=7)
     except Exception as e:
         session.open(
             MessageBox,
-            "Chyba při přidání lokálního časovače:\n%s" % str(e),
+            "Fehler beim Hinzufügen des lokalen Timers:\n%s" % str(e),
             MessageBox.TYPE_ERROR,
             timeout=6,
         )
@@ -1739,7 +1742,7 @@ def send_timer_http(
         wait_dlg = session.openWithCallback(
             _show_result,
             MessageBox,
-            "Připojuji (roztáčím) disk...\n(%s)" % box["name"],
+            "Verbinde (Festplatte läuft an)...\n(%s)" % box["name"],
             MessageBox.TYPE_INFO,
             enable_input=False,
         )
@@ -1777,7 +1780,7 @@ def send_timer_http(
 
             root = ET.fromstring(xml_data)
             state_ok = _xml_text(root, "e2state").lower() == "true"
-            statetext = _xml_text(root, "e2statetext", "Bez odpovědi")
+            statetext = _xml_text(root, "e2statetext", "Keine Antwort")
 
             if state_ok:
                 cur_ts = int(time.time())
@@ -1802,13 +1805,13 @@ def send_timer_http(
                     pass
                 sync_timer_cache_async()
 
-                dir_info = remote_dir if remote_dir else "výchozí"
+                dir_info = remote_dir if remote_dir else "Standard"
                 if infinite:
-                    margin_info = "-%d min / nekonečné (\u221e)" % margin_before_min
+                    margin_info = "-%d Min. / endlos (\u221e)" % margin_before_min
                 else:
-                    margin_info = "-%d / +%d min" % (margin_before_min, margin_after_min)
+                    margin_info = "-%d / +%d Min." % (margin_before_min, margin_after_min)
                 state["ok"] = True
-                state["msg"] = "Časovač přidán na %s (%s):\n%s\nCesta: %s\n\n(%s)" % (
+                state["msg"] = "Timer hinzugefügt auf %s (%s):\n%s\nPfad: %s\n\n(%s)" % (
                     box["name"],
                     margin_info,
                     timer_data["name"],
@@ -1817,17 +1820,17 @@ def send_timer_http(
                 )
             else:
                 state["ok"] = False
-                state["msg"] = "Box %s časovač odmítl:\n%s" % (box["name"], statetext)
+                state["msg"] = "Box %s hat den Timer abgelehnt:\n%s" % (box["name"], statetext)
 
         except urllib.error.HTTPError as e:
             state["ok"] = False
-            state["msg"] = "HTTP chyba na %s (%s): %s" % (box["name"], box["ip"], e.code)
+            state["msg"] = "HTTP-Fehler auf %s (%s): %s" % (box["name"], box["ip"], e.code)
         except urllib.error.URLError as e:
             state["ok"] = False
-            state["msg"] = "Nelze se připojit k %s (%s):\n%s" % (box["name"], box["ip"], e.reason)
+            state["msg"] = "Verbindung zu %s (%s) fehlgeschlagen:\n%s" % (box["name"], box["ip"], e.reason)
         except Exception as e:
             state["ok"] = False
-            state["msg"] = "Neočekávaná chyba (%s):\n%s" % (box["name"], str(e))
+            state["msg"] = "Unerwarteter Fehler (%s):\n%s" % (box["name"], str(e))
         finally:
             state["done"] = True
 
@@ -1866,10 +1869,10 @@ def delete_timer_from_epg(session, timer_item, on_changed_callback=None):
         if ok:
             if callable(on_changed_callback):
                 on_changed_callback()
-            msg = "Časovač zrušen (%s):\n%s" % (timer_item["box_name"], timer_item["name"])
+            msg = "Timer abgebrochen (%s):\n%s" % (timer_item["box_name"], timer_item["name"])
             session.open(MessageBox, msg, MessageBox.TYPE_INFO, timeout=4)
         else:
-            msg = "Chyba při rušení lokálního časovače:\n%s" % statetext
+            msg = "Fehler beim Abbrechen des lokalen Timers:\n%s" % statetext
             session.open(MessageBox, msg, MessageBox.TYPE_ERROR, timeout=6)
         return
 
@@ -1891,19 +1894,19 @@ def delete_timer_from_epg(session, timer_item, on_changed_callback=None):
             if callable(on_changed_callback):
                 on_changed_callback()
             sync_timer_cache_async()
-            msg = "Časovač zrušen (%s):\n%s" % (box["name"], timer_item["name"])
+            msg = "Timer abgebrochen (%s):\n%s" % (box["name"], timer_item["name"])
             session.open(MessageBox, msg, MessageBox.TYPE_INFO, timeout=4)
         else:
-            msg = "Box %s odmítl zrušit časovač:\n%s" % (box["name"], statetext)
+            msg = "Box %s hat das Abbrechen abgelehnt:\n%s" % (box["name"], statetext)
             session.open(MessageBox, msg, MessageBox.TYPE_ERROR, timeout=6)
     except urllib.error.HTTPError as e:
-        msg = "HTTP chyba při rušení na %s: %s" % (box["name"], e.code)
+        msg = "HTTP-Fehler beim Abbrechen auf %s: %s" % (box["name"], e.code)
         session.open(MessageBox, msg, MessageBox.TYPE_ERROR, timeout=6)
     except urllib.error.URLError as e:
-        msg = "Nelze se připojit k %s:\n%s" % (box["name"], e.reason)
+        msg = "Verbindung zu %s fehlgeschlagen:\n%s" % (box["name"], e.reason)
         session.open(MessageBox, msg, MessageBox.TYPE_ERROR, timeout=6)
     except Exception as e:
-        msg = "Chyba při rušení (%s):\n%s" % (box["name"], str(e))
+        msg = "Fehler beim Abbrechen (%s):\n%s" % (box["name"], str(e))
         session.open(MessageBox, msg, MessageBox.TYPE_ERROR, timeout=6)
 
 
@@ -2008,7 +2011,7 @@ def open_box_selector(session, event, service, local_callback=None, on_changed_c
     if event is None or service is None:
         session.open(
             MessageBox,
-            "Nepodařilo se načíst data o pořadu (chybí EPG nebo kanál).",
+            "Sendungsdaten konnten nicht geladen werden (EPG oder Sender fehlt).",
             MessageBox.TYPE_ERROR,
             timeout=5,
         )
@@ -2018,7 +2021,7 @@ def open_box_selector(session, event, service, local_callback=None, on_changed_c
     if not sref:
         session.open(
             MessageBox,
-            "Chybí Service Reference (sRef) vybraného kanálu.",
+            "Service Reference (sRef) des ausgewählten Senders fehlt.",
             MessageBox.TYPE_ERROR,
             timeout=5,
         )
@@ -2031,7 +2034,7 @@ def open_box_selector(session, event, service, local_callback=None, on_changed_c
         "sref": sref,
         "raw_begin": raw_begin,
         "raw_end": raw_end,
-        "name": event.getEventName() or "Bez názvu",
+        "name": event.getEventName() or "Ohne Titel",
         "desc": event.getShortDescription() or "",
         "eit": int(event.getEventId() or 0),
     }
@@ -2066,7 +2069,7 @@ def open_box_selector(session, event, service, local_callback=None, on_changed_c
         local_color = 0x00FFDD33 if local_right else None
     items.append(
         (
-            "(%s) Tento přijímač" % get_local_tag(),
+            "(%s) Dieser Receiver" % get_local_tag(),
             local_right,
             local_color,
             ("LOCAL", None),
@@ -2095,14 +2098,14 @@ def open_box_selector(session, event, service, local_callback=None, on_changed_c
     if not active_boxes:
         items.append(
             (
-                ">>> Nastavit vzdálené přijímače... <<<",
+                ">>> Entfernte Receiver einrichten... <<<",
                 "",
                 0x00FFCC33,
                 ("SETUP", None),
             )
         )
 
-    title = "Čím nahrát: %s" % timer_data["name"]
+    title = "Aufnehmen mit: %s" % timer_data["name"]
     session.openWithCallback(
         lambda choice: on_box_selected(
             session,
@@ -2123,17 +2126,17 @@ def open_box_selector(session, event, service, local_callback=None, on_changed_c
 
 def _format_timer_state(state_str, disabled_str, end_ts, now_ts):
     if disabled_str == "1":
-        return "Vypnuto"
+        return "Deaktiviert"
     if state_str == "3":
-        return "Hotovo"
+        return "Fertig"
     if state_str == "2":
-        return "Nahrává"
+        return "Aufnahme"
     if end_ts > 0 and end_ts < now_ts:
-        return "Selhalo"
+        return "Fehlgeschlagen"
     if state_str == "1":
-        return "Příprava"
+        return "Vorbereitung"
     if state_str == "0":
-        return "Čeká"
+        return "Wartet"
     return ""
 
 
@@ -2174,13 +2177,13 @@ def fetch_local_timers(session):
             end_ts = int(getattr(t, "end", 0))
             state_str = str(getattr(t, "state", 0))
             disabled_str = "1" if getattr(t, "disabled", False) else "0"
-            name = str(getattr(t, "name", "Bez názvu") or "Bez názvu")
+            name = str(getattr(t, "name", "Ohne Titel") or "Ohne Titel")
             filename = str(getattr(t, "Filename", "") or "")
             sref_obj = getattr(t, "service_ref", None)
             if sref_obj and hasattr(sref_obj, "getServiceName"):
-                sname = sref_obj.getServiceName() or "Neznámý kanál"
+                sname = sref_obj.getServiceName() or "Unbekannter Sender"
             else:
-                sname = "Neznámý kanál"
+                sname = "Unbekannter Sender"
             sref_str = get_sref_string(sref_obj)
 
             time_txt = _format_time_range(begin_ts, end_ts)
@@ -2190,7 +2193,7 @@ def fetch_local_timers(session):
                 {
                     "is_local": True,
                     "box": None,
-                    "box_name": "Tento přijímač",
+                    "box_name": "Dieser Receiver",
                     "tag": l_tag,
                     "local_obj": t,
                     "filename": filename,
@@ -2225,8 +2228,8 @@ def fetch_remote_timers(box):
 
     for item in root.findall("e2timer"):
         sref = _xml_text(item, "e2servicereference")
-        sname = _xml_text(item, "e2servicename", "Neznámý kanál")
-        name = _xml_text(item, "e2name", "Bez názvu")
+        sname = _xml_text(item, "e2servicename", "Unbekannter Sender")
+        name = _xml_text(item, "e2name", "Ohne Titel")
         filename = _xml_text(item, "e2filename", "")
         begin_str = _xml_text(item, "e2timebegin", "0")
         end_str = _xml_text(item, "e2timeend", "0")
@@ -2288,7 +2291,7 @@ def _change_remote_timer_end_raw(box, timer_item, new_end_ts):
         xml_data = resp.read()
     root = ET.fromstring(xml_data)
     state_ok = _xml_text(root, "e2state").lower() == "true"
-    statetext = _xml_text(root, "e2statetext", "Bez odpovědi")
+    statetext = _xml_text(root, "e2statetext", "Keine Antwort")
     return state_ok, statetext
 
 
@@ -2296,11 +2299,11 @@ def _change_local_timer_end_raw(session, timer_item, new_end_ts):
     rec_timer = getattr(session.nav, "RecordTimer", None)
     t_obj = timer_item.get("local_obj")
     if rec_timer is None or t_obj is None:
-        return False, "Lokální časovač nenalezen"
+        return False, "Lokaler Timer nicht gefunden"
     try:
         t_obj.end = int(new_end_ts)
         rec_timer.timeChanged(t_obj)
-        return True, "Konec upraven"
+        return True, "Ende geändert"
     except Exception as e:
         return False, str(e)
 
@@ -2315,7 +2318,7 @@ def change_any_timer_end(session, timer_item, new_end_ts):
     if timer_item["is_local"]:
         ok, statetext = _change_local_timer_end_raw(session, timer_item, new_end_ts)
         if ok:
-            msg = "Konec nahrávání změněn (%s):\n%s\nNový konec: %s" % (
+            msg = "Aufnahmeende geändert (%s):\n%s\nNeues Ende: %s" % (
                 timer_item["box_name"],
                 timer_item["name"],
                 new_end_str,
@@ -2328,7 +2331,7 @@ def change_any_timer_end(session, timer_item, new_end_ts):
                 timeout=3,
             )
         else:
-            msg = "Chyba při změně konce lokálního časovače:\n%s" % statetext
+            msg = "Fehler beim Ändern des lokalen Timer-Endes:\n%s" % statetext
             session.openWithCallback(
                 lambda _res: open_combined_timers(session),
                 MessageBox,
@@ -2343,7 +2346,7 @@ def change_any_timer_end(session, timer_item, new_end_ts):
         state_ok, statetext = _change_remote_timer_end_raw(box, timer_item, new_end_ts)
         sync_timer_cache_async()
         if state_ok:
-            msg = "Konec nahrávání změněn (%s):\n%s\nNový konec: %s" % (
+            msg = "Aufnahmeende geändert (%s):\n%s\nNeues Ende: %s" % (
                 box["name"],
                 timer_item["name"],
                 new_end_str,
@@ -2356,7 +2359,7 @@ def change_any_timer_end(session, timer_item, new_end_ts):
                 timeout=3,
             )
         else:
-            msg = "Box %s odmítl změnit konec časovače:\n%s" % (box["name"], statetext)
+            msg = "Box %s hat die Änderung abgelehnt:\n%s" % (box["name"], statetext)
             session.openWithCallback(
                 lambda _res: open_combined_timers(session),
                 MessageBox,
@@ -2365,7 +2368,7 @@ def change_any_timer_end(session, timer_item, new_end_ts):
                 timeout=6,
             )
     except urllib.error.HTTPError as e:
-        msg = "HTTP chyba při změně na %s: %s" % (box["name"], e.code)
+        msg = "HTTP-Fehler beim Ändern auf %s: %s" % (box["name"], e.code)
         session.openWithCallback(
             lambda _res: open_combined_timers(session),
             MessageBox,
@@ -2374,7 +2377,7 @@ def change_any_timer_end(session, timer_item, new_end_ts):
             timeout=6,
         )
     except urllib.error.URLError as e:
-        msg = "Nelze se připojit k %s:\n%s" % (box["name"], e.reason)
+        msg = "Verbindung zu %s fehlgeschlagen:\n%s" % (box["name"], e.reason)
         session.openWithCallback(
             lambda _res: open_combined_timers(session),
             MessageBox,
@@ -2383,7 +2386,7 @@ def change_any_timer_end(session, timer_item, new_end_ts):
             timeout=6,
         )
     except Exception as e:
-        msg = "Chyba při změně konce (%s):\n%s" % (box["name"], str(e))
+        msg = "Fehler beim Ändern des Endes (%s):\n%s" % (box["name"], str(e))
         session.openWithCallback(
             lambda _res: open_combined_timers(session),
             MessageBox,
@@ -2445,7 +2448,7 @@ def _stop_remote_timer_raw(box, timer_item):
         xml_data = resp.read()
     root = ET.fromstring(xml_data)
     state_ok = _xml_text(root, "e2state").lower() == "true"
-    statetext = _xml_text(root, "e2statetext", "Bez odpovědi")
+    statetext = _xml_text(root, "e2statetext", "Keine Antwort")
     return state_ok, statetext
 
 
@@ -2453,7 +2456,7 @@ def _stop_local_timer_raw(session, timer_item):
     rec_timer = getattr(session.nav, "RecordTimer", None)
     t_obj = timer_item.get("local_obj")
     if rec_timer is None or t_obj is None:
-        return False, "Lokální časovač nenalezen"
+        return False, "Lokaler Timer nicht gefunden"
     try:
         if hasattr(t_obj, "afterEvent"):
             t_obj.afterEvent = 0
@@ -2462,7 +2465,7 @@ def _stop_local_timer_raw(session, timer_item):
         else:
             t_obj.disabled = True
         rec_timer.timeChanged(t_obj)
-        return True, "Nahrávání zastaveno"
+        return True, "Aufnahme gestoppt"
     except Exception as e:
         return False, str(e)
 
@@ -2480,7 +2483,7 @@ def _delete_single_timer_raw(box, timer_item):
         xml_data = resp.read()
     root = ET.fromstring(xml_data)
     state_ok = _xml_text(root, "e2state").lower() == "true"
-    statetext = _xml_text(root, "e2statetext", "Bez odpovědi")
+    statetext = _xml_text(root, "e2statetext", "Keine Antwort")
     return state_ok, statetext
 
 
@@ -2488,12 +2491,12 @@ def _delete_local_timer_raw(session, timer_item):
     rec_timer = getattr(session.nav, "RecordTimer", None)
     t_obj = timer_item.get("local_obj")
     if rec_timer is None or t_obj is None:
-        return False, "Lokální časovač nenalezen"
+        return False, "Lokaler Timer nicht gefunden"
     try:
         if hasattr(t_obj, "afterEvent"):
             t_obj.afterEvent = 0
         rec_timer.removeEntry(t_obj)
-        return True, "Smazáno"
+        return True, "Gelöscht"
     except Exception as e:
         return False, str(e)
 
@@ -2505,7 +2508,7 @@ def _delete_local_recording_raw(timer_item):
         if t_obj is not None:
             filename = str(getattr(t_obj, "Filename", "") or "")
     if not filename:
-        return False, "Cesta k souboru nahrávky nebyla nalezena"
+        return False, "Pfad zur Aufnahmedatei nicht gefunden"
 
     ts_path = filename if filename.endswith(".ts") else (filename + ".ts")
     base_no_ext = ts_path[:-3]
@@ -2516,7 +2519,7 @@ def _delete_local_recording_raw(timer_item):
         service_handler = eServiceCenter.getInstance()
         offline = service_handler.offlineOperations(sref)
         if offline is not None and offline.deleteFromDisk(0) == 0:
-            return True, "Nahrávka smazána"
+            return True, "Aufnahme gelöscht"
     except Exception:
         pass
 
@@ -2532,8 +2535,8 @@ def _delete_local_recording_raw(timer_item):
             pass
 
     if removed_any:
-        return True, "Nahrávka smazána"
-    return False, "Soubor nahrávky nenalezen na disku"
+        return True, "Aufnahme gelöscht"
+    return False, "Aufnahmedatei auf der Festplatte nicht gefunden"
 
 
 def _find_remote_movie_sref(box, timer_item):
@@ -2570,7 +2573,7 @@ def _find_remote_movie_sref(box, timer_item):
 def _delete_remote_recording_raw(box, timer_item):
     movie_sref = _find_remote_movie_sref(box, timer_item)
     if not movie_sref:
-        return False, "Cesta k nahrávce nebyla nalezena"
+        return False, "Pfad zur Aufnahme nicht gefunden"
 
     url_base = "http://%s:%d/web/moviedelete?" % (box["ip"], box["port"])
     params = {"sRef": movie_sref}
@@ -2580,7 +2583,7 @@ def _delete_remote_recording_raw(box, timer_item):
         xml_data = resp.read()
     root = ET.fromstring(xml_data)
     state_ok = _xml_text(root, "e2state").lower() == "true"
-    statetext = _xml_text(root, "e2statetext", "Bez odpovědi")
+    statetext = _xml_text(root, "e2statetext", "Keine Antwort")
     return state_ok, statetext
 
 
@@ -2589,7 +2592,7 @@ def stop_any_timer(session, timer_item, delete_after=False):
         if delete_after:
             ok_del, del_txt = _delete_local_timer_raw(session, timer_item)
             if not ok_del:
-                msg = "Chyba při zastavení a smazání:\n%s" % del_txt
+                msg = "Fehler beim Stoppen und Löschen:\n%s" % del_txt
                 session.openWithCallback(
                     lambda _res: open_combined_timers(session),
                     MessageBox,
@@ -2602,7 +2605,7 @@ def stop_any_timer(session, timer_item, delete_after=False):
             time.sleep(1.2)
             ok_rec, rec_txt = _delete_local_recording_raw(timer_item)
             if ok_rec:
-                msg = "Nahrávání zastaveno, časovač i nahrávka smazány (%s):\n%s" % (
+                msg = "Aufnahme gestoppt, Timer und Aufnahme gelöscht (%s):\n%s" % (
                     timer_item["box_name"],
                     timer_item["name"],
                 )
@@ -2614,7 +2617,7 @@ def stop_any_timer(session, timer_item, delete_after=False):
                     timeout=4,
                 )
             else:
-                msg = "Časovač smazán, ale smazání nahrávky selhalo (%s):\n%s" % (
+                msg = "Timer gelöscht, aber Löschen der Aufnahme fehlgeschlagen (%s):\n%s" % (
                     timer_item["box_name"],
                     rec_txt,
                 )
@@ -2629,7 +2632,7 @@ def stop_any_timer(session, timer_item, delete_after=False):
 
         ok, statetext = _stop_local_timer_raw(session, timer_item)
         if ok:
-            msg = "Nahrávání zastaveno (%s):\n%s" % (
+            msg = "Aufnahme gestoppt (%s):\n%s" % (
                 timer_item["box_name"],
                 timer_item["name"],
             )
@@ -2641,7 +2644,7 @@ def stop_any_timer(session, timer_item, delete_after=False):
                 timeout=3,
             )
         else:
-            msg = "Chyba při zastavení lokálního nahrávání:\n%s" % statetext
+            msg = "Fehler beim Stoppen der lokalen Aufnahme:\n%s" % statetext
             session.openWithCallback(
                 lambda _res: open_combined_timers(session),
                 MessageBox,
@@ -2657,7 +2660,7 @@ def stop_any_timer(session, timer_item, delete_after=False):
             del_ok, del_txt = _delete_single_timer_raw(box, timer_item)
             sync_timer_cache_async()
             if not del_ok:
-                msg = "Box %s odmítl zastavit a smazat časovač:\n%s" % (
+                msg = "Box %s hat Stoppen und Löschen des Timers abgelehnt:\n%s" % (
                     box["name"],
                     del_txt,
                 )
@@ -2673,7 +2676,7 @@ def stop_any_timer(session, timer_item, delete_after=False):
             time.sleep(1.2)
             rec_ok, rec_txt = _delete_remote_recording_raw(box, timer_item)
             if rec_ok:
-                msg = "Nahrávání zastaveno, časovač i nahrávka smazány (%s):\n%s" % (
+                msg = "Aufnahme gestoppt, Timer und Aufnahme gelöscht (%s):\n%s" % (
                     box["name"],
                     timer_item["name"],
                 )
@@ -2685,7 +2688,7 @@ def stop_any_timer(session, timer_item, delete_after=False):
                     timeout=4,
                 )
             else:
-                msg = "Časovač smazán, ale box %s nesmazal nahrávku:\n%s" % (
+                msg = "Timer gelöscht, aber Box %s hat die Aufnahme nicht gelöscht:\n%s" % (
                     box["name"],
                     rec_txt,
                 )
@@ -2701,7 +2704,7 @@ def stop_any_timer(session, timer_item, delete_after=False):
         state_ok, statetext = _stop_remote_timer_raw(box, timer_item)
         sync_timer_cache_async()
         if state_ok:
-            msg = "Nahrávání zastaveno (%s):\n%s" % (box["name"], timer_item["name"])
+            msg = "Aufnahme gestoppt (%s):\n%s" % (box["name"], timer_item["name"])
             session.openWithCallback(
                 lambda _res: open_combined_timers(session),
                 MessageBox,
@@ -2710,7 +2713,7 @@ def stop_any_timer(session, timer_item, delete_after=False):
                 timeout=3,
             )
         else:
-            msg = "Box %s odmítl zastavit nahrávání:\n%s" % (box["name"], statetext)
+            msg = "Box %s hat das Stoppen abgelehnt:\n%s" % (box["name"], statetext)
             session.openWithCallback(
                 lambda _res: open_combined_timers(session),
                 MessageBox,
@@ -2719,7 +2722,7 @@ def stop_any_timer(session, timer_item, delete_after=False):
                 timeout=6,
             )
     except urllib.error.HTTPError as e:
-        msg = "HTTP chyba při zastavení na %s: %s" % (box["name"], e.code)
+        msg = "HTTP-Fehler beim Stoppen auf %s: %s" % (box["name"], e.code)
         session.openWithCallback(
             lambda _res: open_combined_timers(session),
             MessageBox,
@@ -2728,7 +2731,7 @@ def stop_any_timer(session, timer_item, delete_after=False):
             timeout=6,
         )
     except urllib.error.URLError as e:
-        msg = "Nelze se připojit k %s:\n%s" % (box["name"], e.reason)
+        msg = "Verbindung zu %s fehlgeschlagen:\n%s" % (box["name"], e.reason)
         session.openWithCallback(
             lambda _res: open_combined_timers(session),
             MessageBox,
@@ -2737,7 +2740,7 @@ def stop_any_timer(session, timer_item, delete_after=False):
             timeout=6,
         )
     except Exception as e:
-        msg = "Chyba při zastavení (%s):\n%s" % (box["name"], str(e))
+        msg = "Fehler beim Stoppen (%s):\n%s" % (box["name"], str(e))
         session.openWithCallback(
             lambda _res: open_combined_timers(session),
             MessageBox,
@@ -2814,7 +2817,7 @@ def cleanup_all_finished_and_failed(session, timers_to_delete):
             pass
 
     sync_timer_cache_async()
-    msg = "Smazáno %d hotových/selhaných časovačů ze všech přijímačů." % deleted
+    msg = "%d fertige/fehlgeschlagene Timer auf allen Receivern gelöscht." % deleted
     session.openWithCallback(
         lambda _res: open_combined_timers(session),
         MessageBox,
@@ -2828,7 +2831,7 @@ def delete_any_timer(session, timer_item):
     if timer_item["is_local"]:
         ok, statetext = _delete_local_timer_raw(session, timer_item)
         if ok:
-            msg = "Časovač smazán z %s:\n%s" % (timer_item["box_name"], timer_item["name"])
+            msg = "Timer gelöscht von %s:\n%s" % (timer_item["box_name"], timer_item["name"])
             session.openWithCallback(
                 lambda _res: open_combined_timers(session),
                 MessageBox,
@@ -2837,7 +2840,7 @@ def delete_any_timer(session, timer_item):
                 timeout=3,
             )
         else:
-            msg = "Chyba při mazání lokálního časovače:\n%s" % statetext
+            msg = "Fehler beim Löschen des lokalen Timers:\n%s" % statetext
             session.open(MessageBox, msg, MessageBox.TYPE_ERROR, timeout=6)
         return
 
@@ -2846,7 +2849,7 @@ def delete_any_timer(session, timer_item):
         state_ok, statetext = _delete_single_timer_raw(box, timer_item)
         if state_ok:
             sync_timer_cache_async()
-            msg = "Časovač smazán z %s:\n%s" % (box["name"], timer_item["name"])
+            msg = "Timer gelöscht von %s:\n%s" % (box["name"], timer_item["name"])
             session.openWithCallback(
                 lambda _res: open_combined_timers(session),
                 MessageBox,
@@ -2855,16 +2858,16 @@ def delete_any_timer(session, timer_item):
                 timeout=3,
             )
         else:
-            msg = "Box %s odmítl smazat časovač:\n%s" % (box["name"], statetext)
+            msg = "Box %s hat das Löschen abgelehnt:\n%s" % (box["name"], statetext)
             session.open(MessageBox, msg, MessageBox.TYPE_ERROR, timeout=6)
     except urllib.error.HTTPError as e:
-        msg = "HTTP chyba při mazání na %s: %s" % (box["name"], e.code)
+        msg = "HTTP-Fehler beim Löschen auf %s: %s" % (box["name"], e.code)
         session.open(MessageBox, msg, MessageBox.TYPE_ERROR, timeout=6)
     except urllib.error.URLError as e:
-        msg = "Nelze se připojit k %s:\n%s" % (box["name"], e.reason)
+        msg = "Verbindung zu %s fehlgeschlagen:\n%s" % (box["name"], e.reason)
         session.open(MessageBox, msg, MessageBox.TYPE_ERROR, timeout=6)
     except Exception as e:
-        msg = "Chyba při mazání (%s):\n%s" % (box["name"], str(e))
+        msg = "Fehler beim Löschen (%s):\n%s" % (box["name"], str(e))
         session.open(MessageBox, msg, MessageBox.TYPE_ERROR, timeout=6)
 
 
@@ -2895,12 +2898,12 @@ def open_combined_timers(session, **kwargs):
     rows_spec = []
     if not active_boxes:
         rows_spec.append(
-            ("BANNER", "OPEN_SETUP", ">>> Není nastaven žádný vzdálený box – otevřít nastavení <<<")
+            ("BANNER", "OPEN_SETUP", ">>> Keine entfernte Box eingerichtet – Einstellungen öffnen <<<")
         )
 
     if offline_boxes:
         rows_spec.append(
-            ("BANNER", "OFFLINE_INFO", "[!] Nedostupné: %s" % ", ".join(offline_boxes))
+            ("BANNER", "OFFLINE_INFO", "[!] Nicht erreichbar: %s" % ", ".join(offline_boxes))
         )
 
     if finished_or_failed:
@@ -2908,7 +2911,7 @@ def open_combined_timers(session, **kwargs):
             (
                 "BANNER",
                 "CLEANUP_ALL",
-                ">>> SMAZAT VŠECHNY HOTOVÉ A SELHANÉ (%d) <<<" % len(finished_or_failed),
+                ">>> ALLE FERTIGEN & FEHLGESCHLAGENEN LÖSCHEN (%d) <<<" % len(finished_or_failed),
             )
         )
 
@@ -2917,7 +2920,7 @@ def open_combined_timers(session, **kwargs):
 
     if not rows_spec:
         rows_spec.append(
-            ("BANNER", "OPEN_SETUP", "Žádné časovače (ŽLUTÉ tlačítko = nastavení boxů)")
+            ("BANNER", "OPEN_SETUP", "Keine Timer vorhanden (GELBE Taste = Box-Einstellungen)")
         )
 
     def on_screen_closed(result):
@@ -2938,7 +2941,7 @@ def open_combined_timers(session, **kwargs):
                 session.openWithCallback(
                     lambda _res: open_combined_timers(session),
                     MessageBox,
-                    "Konec lze měnit jen u probíhajícího nebo čekajícího časovače.",
+                    "Das Ende kann nur bei laufenden oder wartenden Timern geändert werden.",
                     MessageBox.TYPE_INFO,
                     timeout=3,
                 )
@@ -2951,7 +2954,7 @@ def open_combined_timers(session, **kwargs):
             if next_t:
                 try:
                     dt_next = datetime.fromtimestamp(int(next_t["begin"]))
-                    next_info = "Další čekající na [%s]: %s (%s)" % (
+                    next_info = "Nächster wartender auf [%s]: %s (%s)" % (
                         t_item["tag"],
                         dt_next.strftime("%d.%m %H:%M"),
                         next_t["name"],
@@ -2979,7 +2982,7 @@ def open_combined_timers(session, **kwargs):
                 session.openWithCallback(
                     lambda _res: open_combined_timers(session),
                     MessageBox,
-                    "Vybraný časovač právě nenahrává.",
+                    "Der ausgewählte Timer nimmt gerade nicht auf.",
                     MessageBox.TYPE_INFO,
                     timeout=3,
                 )
@@ -2988,7 +2991,7 @@ def open_combined_timers(session, **kwargs):
             t_item = selected
             stop_choices = [
                 ("STOP REC", "STOP_ONLY"),
-                ("STOP REC & SMAZAT NAHRÁVKU", "STOP_DELETE"),
+                ("STOP REC & AUFNAHME LÖSCHEN", "STOP_DELETE"),
             ]
 
             def on_stop_choice(choice):
@@ -3001,7 +3004,7 @@ def open_combined_timers(session, **kwargs):
                 elif action == "STOP_DELETE":
                     stop_any_timer(session, t_item, delete_after=True)
 
-            stop_title = "Ukončit nahrávání [%s]: %s" % (t_item["tag"], t_item["name"])
+            stop_title = "Aufnahme beenden [%s]: %s" % (t_item["tag"], t_item["name"])
             session.openWithCallback(
                 on_stop_choice,
                 ChoiceBox,
@@ -3019,7 +3022,7 @@ def open_combined_timers(session, **kwargs):
 
         if selected == "CLEANUP_ALL":
             confirm_all = (
-                "Hromadně smazat všechny hotové a selhané časovače (%d) ze všech přijímačů?"
+                "Alle fertigen und fehlgeschlagenen Timer (%d) von allen Receivern löschen?"
                 % len(finished_or_failed)
             )
 
@@ -3035,7 +3038,7 @@ def open_combined_timers(session, **kwargs):
             return
 
         t_item = selected
-        confirm_msg = "Smazat časovač z [%s] %s?\n\n%s\n%s (%s)" % (
+        confirm_msg = "Timer von [%s] %s löschen?\n\n%s\n%s (%s)" % (
             t_item["tag"],
             t_item["box_name"],
             t_item["name"],
@@ -3051,20 +3054,20 @@ def open_combined_timers(session, **kwargs):
 
         session.openWithCallback(on_confirm, MessageBox, confirm_msg, MessageBox.TYPE_YESNO)
 
-    legend_parts = ["[%s]=Tento" % get_local_tag()] + [
+    legend_parts = ["[%s]=Dieser" % get_local_tag()] + [
         "[%s]=%s" % (b.get("tag", b["name"][:2].upper()), b["name"]) for b in active_boxes
     ]
-    title = "Všechny časovače: " + "  ".join(legend_parts)
+    title = "Alle Timer: " + "  ".join(legend_parts)
     session.openWithCallback(on_screen_closed, CombinedTimersScreen, title, rows_spec)
 
 
 def timer_menu_entry(menuid, **kwargs):
     if menuid == "mainmenu":
-        return [("Všechny časovače", open_combined_timers, "remote_timer_main", 15)]
+        return [("Alle Timer", open_combined_timers, "remote_timer_main", 15)]
     if menuid == "timermenu":
         return [
-            ("Všechny časovače", open_combined_timers, "remote_timer_select", 50),
-            ("Nastavení vzdálených časovačů", open_setup_screen, "remote_timer_setup", 51),
+            ("Alle Timer", open_combined_timers, "remote_timer_select", 50),
+            ("Remote-Timer Einstellungen", open_setup_screen, "remote_timer_setup", 51),
         ]
     return []
 
@@ -3234,6 +3237,32 @@ def install_live_rec_hook():
         pass
 
 
+def _colorize_epg_result(res, color=EPG_MARK_COLOR):
+    if not isinstance(res, list) or len(res) < 2:
+        return res
+    new_res = [res[0]]
+    for entry in res[1:]:
+        if (
+            isinstance(entry, tuple)
+            and len(entry) >= 8
+            and entry[0] == eListboxPythonMultiContent.TYPE_TEXT
+        ):
+            lst = list(entry)
+            if len(lst) == 8:
+                lst.append(color)
+                lst.append(color)
+            elif len(lst) == 9:
+                lst[8] = color
+                lst.append(color)
+            else:
+                lst[8] = color
+                lst[9] = color
+            new_res.append(tuple(lst))
+        else:
+            new_res.append(entry)
+    return new_res
+
+
 def _wrap_epg_builder(orig_fn):
     try:
         sig = inspect.signature(orig_fn)
@@ -3278,9 +3307,11 @@ def _wrap_epg_builder(orig_fn):
                         break
 
                 marks = get_epg_marks(service, event_id, begin_time, duration)
-                if marks and not b_args[name_key].startswith(marks):
-                    b_args[name_key] = marks + b_args[name_key]
-                    return orig_fn(*bound.args, **bound.kwargs)
+                if marks:
+                    if not b_args[name_key].startswith(marks):
+                        b_args[name_key] = marks + b_args[name_key]
+                    res = orig_fn(*bound.args, **bound.kwargs)
+                    return _colorize_epg_result(res, EPG_MARK_COLOR)
 
             event_obj = None
             for k in ("event", "ev", "epgEvent", "epg_event"):
@@ -3298,15 +3329,17 @@ def _wrap_epg_builder(orig_fn):
 
                 marks = get_epg_marks(service, ev_id, ev_begin, ev_dur)
                 res = orig_fn(*bound.args, **bound.kwargs)
-                if marks and orig_name and not orig_name.startswith(marks) and isinstance(res, list):
-                    new_res = []
-                    for entry in res:
-                        if isinstance(entry, tuple) and orig_name in entry:
-                            entry = tuple(
-                                (marks + x if x == orig_name else x) for x in entry
-                            )
-                        new_res.append(entry)
-                    return new_res
+                if marks and isinstance(res, list):
+                    if orig_name and not orig_name.startswith(marks):
+                        new_res = []
+                        for entry in res:
+                            if isinstance(entry, tuple) and orig_name in entry:
+                                entry = tuple(
+                                    (marks + x if x == orig_name else x) for x in entry
+                                )
+                            new_res.append(entry)
+                        res = new_res
+                    return _colorize_epg_result(res, EPG_MARK_COLOR)
                 return res
         except Exception:
             pass
@@ -3405,29 +3438,29 @@ def Plugins(**kwargs):
             fnc=on_session_start,
         ),
         PluginDescriptor(
-            name="Všechny časovače",
-            description="Souhrnný seznam časovačů ze všech přijímačů",
+            name="Alle Timer",
+            description="Gesamtübersicht aller Timer von allen Receivern",
             where=PluginDescriptor.WHERE_MENU,
             fnc=timer_menu_entry,
             needsRestart=False,
         ),
         PluginDescriptor(
-            name="Vzdálené nahrávání",
-            description="Přidat časovač na vzdálený přijímač",
+            name="Remote-Aufnahme",
+            description="Timer auf einem entfernten Receiver hinzufügen",
             where=PluginDescriptor.WHERE_EVENTINFO,
             fnc=eventinfo,
             needsRestart=False,
         ),
         PluginDescriptor(
-            name="Vzdálené nahrávání",
-            description="Nahrát aktuální pořad na vzdálený přijímač",
+            name="Remote-Aufnahme",
+            description="Aktuelle Sendung auf einem entfernten Receiver aufnehmen",
             where=PluginDescriptor.WHERE_EXTENSIONSMENU,
             fnc=main_extension,
             needsRestart=False,
         ),
         PluginDescriptor(
-            name="Všechny časovače",
-            description="Souhrnný seznam a mazání časovačů ze všech přijímačů",
+            name="Alle Timer",
+            description="Gesamtübersicht und Löschen von Timern aller Receiver",
             where=[
                 PluginDescriptor.WHERE_EXTENSIONSMENU,
                 PluginDescriptor.WHERE_PLUGINMENU,
@@ -3436,8 +3469,8 @@ def Plugins(**kwargs):
             needsRestart=False,
         ),
         PluginDescriptor(
-            name="Vzdálené časovače - nastavení",
-            description="Konfigurace IP adres a označení vzdálených přijímačů",
+            name="Remote-Timer - Einstellungen",
+            description="Konfiguration von IP-Adressen und Kennungen entfernter Receiver",
             where=PluginDescriptor.WHERE_PLUGINMENU,
             fnc=open_setup_screen,
             needsRestart=False,
