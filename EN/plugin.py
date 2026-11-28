@@ -163,22 +163,22 @@ class RemoteTimerSetupScreen(ConfigListScreen, Screen):
 
         self["key_red"] = StaticText("Cancel")
         self["key_green"] = StaticText("Save")
-        self["footnote"] = StaticText("OK = text keyboard   |   Green = Save")
+        self["footnote"] = StaticText("OK = virtual keyboard   |   Green = save")
         self["description"] = StaticText("")
 
         cfg = config.plugins.remotetimerselect
         self.list = [
             (
-                getConfigListEntry("Tag for this receiver (max. 2 chars)", cfg.local_tag),
-                "Short tag (max. 2 chars) in EPG and timer list for this local receiver (default: L).",
+                getConfigListEntry("Local receiver tag (max. 2 chars)", cfg.local_tag),
+                "Short tag (max. 2 characters) shown in EPG and timer overview for this local receiver (default: L).",
             ),
             (
-                getConfigListEntry("Auto-delete finished/failed timers (days)", cfg.auto_cleanup_days),
-                "Number of days after which finished and failed timers are automatically deleted (0 = off).",
+                getConfigListEntry("Auto-delete finished/failed (days)", cfg.auto_cleanup_days),
+                "Number of days after which finished and failed timers are automatically deleted (0 = disabled).",
             ),
             (
-                getConfigListEntry("Box selector on REC button (Live TV)", cfg.live_rec_selector),
-                "Opens receiver selection when pressing REC on Live TV (off = standard OpenATV behavior).",
+                getConfigListEntry("Box selector on REC button (recommended: Yes)", cfg.live_rec_selector),
+                "Opens the receiver selector when pressing REC during Live TV (No = standard OpenATV behavior).",
             ),
         ]
 
@@ -187,37 +187,37 @@ class RemoteTimerSetupScreen(ConfigListScreen, Screen):
             self.list.append(
                 (
                     getConfigListEntry("Box %d - Receiver name" % idx, b_cfg.name),
-                    "Name of remote box %d in menus and messages (e.g. Living Room or SF8008)." % idx,
+                    "Name of remote box #%d in menus and messages (e.g. LivingRoom or SF8008)." % idx,
                 )
             )
             self.list.append(
                 (
-                    getConfigListEntry("Box %d - Tag (label)" % idx, b_cfg.tag),
-                    "Short tag in EPG and timer list for box %d (e.g. M, V, B%d)." % (idx, idx),
+                    getConfigListEntry("Box %d - Tag" % idx, b_cfg.tag),
+                    "Short tag shown in EPG and timers for box #%d (e.g. M, V, B%d)." % (idx, idx),
                 )
             )
             self.list.append(
                 (
                     getConfigListEntry("Box %d - IP address (0.0.0.0 = off)" % idx, b_cfg.ip),
-                    "IP address of box %d on local network (number keys). 0.0.0.0 = disabled." % idx,
+                    "Local network IP address of box #%d (use number keys). 0.0.0.0 = disabled." % idx,
                 )
             )
             self.list.append(
                 (
                     getConfigListEntry("Box %d - OpenWebif HTTP port" % idx, b_cfg.port),
-                    "OpenWebif HTTP port on box %d (default is 80)." % idx,
+                    "HTTP port of OpenWebif on box #%d (default is 80)." % idx,
                 )
             )
             self.list.append(
                 (
                     getConfigListEntry("Box %d - OpenWebif username" % idx, b_cfg.user),
-                    "Username for OpenWebif (leave empty if no password is set).",
+                    "Username for OpenWebif (leave empty if authentication is disabled).",
                 )
             )
             self.list.append(
                 (
                     getConfigListEntry("Box %d - OpenWebif password" % idx, b_cfg.password),
-                    "Password for OpenWebif on box %d (leave empty if not required)." % idx,
+                    "Password for OpenWebif on box #%d (leave empty if not required)." % idx,
                 )
             )
 
@@ -283,9 +283,13 @@ def open_setup_screen(session, callback=None, **kwargs):
 
 
 class BoxSelectorScreen(Screen):
-    def __init__(self, session, title, items):
+    def __init__(self, session, title, items, cancel_timers=None):
         Screen.__init__(self, session)
-        self.setTitle(title)
+        self.setTitle("")
+        self.cancel_timers = list(cancel_timers) if cancel_timers else []
+        self.cancel_idx = 0
+        self.base_items = list(items)
+        self.focus_cancel = bool(self.cancel_timers)
 
         desktop_w = 1920
         desktop_h = 1080
@@ -297,118 +301,244 @@ class BoxSelectorScreen(Screen):
             pass
 
         is_fhd = desktop_w >= 1920
-        visible_rows = max(3, min(10, len(items)))
+        visible_rows = max(2, min(10, len(self.base_items)))
 
         if is_fhd:
             font_sz = 36
             item_h = 56
             win_w = 1180
             pad_x = 30
-            title_h = 50
-            list_y = 80
-            list_h = visible_rows * item_h
-            win_h = list_y + list_h + 30
+            title_y = 16
+            title_h = 56
+            first_row_y = 108
+            gap_mid = item_h // 2
             right_w = 420
-            title_font = 32
+            title_font = 40
+            pad_bottom = 24
         else:
             font_sz = 25
             item_h = 40
             win_w = 820
             pad_x = 20
-            title_h = 36
-            list_y = 58
-            list_h = visible_rows * item_h
-            win_h = list_y + list_h + 22
+            title_y = 12
+            title_h = 40
+            first_row_y = 78
+            gap_mid = item_h // 2
             right_w = 300
-            title_font = 22
+            title_font = 28
+            pad_bottom = 18
 
+        list_h = visible_rows * item_h
+        if self.cancel_timers:
+            cancel_y = first_row_y
+            list_y = cancel_y + item_h + gap_mid
+        else:
+            cancel_y = first_row_y
+            list_y = first_row_y
+
+        win_h = list_y + list_h + pad_bottom
         pos_x = max(20, (desktop_w - win_w) // 2)
         pos_y = max(20, (desktop_h - win_h) // 2)
-        list_w = win_w - (2 * pad_x)
+        self.list_w = win_w - (2 * pad_x)
+        self.right_w = right_w
+        self.item_h = item_h
+
+        cancel_widget_xml = ""
+        if self.cancel_timers:
+            cancel_widget_xml = (
+                '<widget name="cancel_list" position="%d,%d" size="%d,%d" font="Regular;%d" itemHeight="%d" backgroundColor="#18000000" transparent="1" scrollbarMode="showNever" enableWrapAround="0" />'
+                % (pad_x, cancel_y, self.list_w, item_h, font_sz, item_h)
+            )
 
         self.skin = (
-            '<screen name="BoxSelectorScreen" position="%d,%d" size="%d,%d" title="%s">'
-            '<widget source="title_text" render="Label" position="%d,15" size="%d,%d" font="Regular;%d" foregroundColor="#00ffcc33" noWrap="1" />'
-            '<widget name="list" position="%d,%d" size="%d,%d" font="Regular;%d" itemHeight="%d" scrollbarMode="showOnDemand" enableWrapAround="1" />'
+            '<screen name="BoxSelectorScreen" position="%d,%d" size="%d,%d" title="" flags="wfNoBorder" backgroundColor="#18000000">'
+            '<widget source="title_text" render="Label" position="%d,%d" size="%d,%d" font="Regular;%d" foregroundColor="#00ffcc33" backgroundColor="#18000000" transparent="1" noWrap="1" />'
+            "%s"
+            '<widget name="list" position="%d,%d" size="%d,%d" font="Regular;%d" itemHeight="%d" backgroundColor="#18000000" transparent="1" scrollbarMode="showOnDemand" enableWrapAround="1" />'
             "</screen>"
         ) % (
             pos_x,
             pos_y,
             win_w,
             win_h,
-            title.replace('"', "&quot;"),
             pad_x,
-            list_w,
+            title_y,
+            self.list_w,
             title_h,
             title_font,
+            cancel_widget_xml,
             pad_x,
             list_y,
-            list_w,
+            self.list_w,
             list_h,
             font_sz,
             item_h,
         )
 
-        mc_entries = []
-        flags_l = RT_HALIGN_LEFT | RT_VALIGN_CENTER
-        flags_r = RT_HALIGN_RIGHT | RT_VALIGN_CENTER
-
-        for left_txt, right_txt, color, payload in items:
-            if right_txt:
-                left_w = list_w - right_w - 20
-                entry = [
-                    (left_txt, payload),
-                    MultiContentEntryText(
-                        pos=(10, 0),
-                        size=(left_w, item_h),
-                        font=0,
-                        flags=flags_l,
-                        text=left_txt,
-                        color=color,
-                    ),
-                    MultiContentEntryText(
-                        pos=(list_w - right_w - 10, 0),
-                        size=(right_w, item_h),
-                        font=0,
-                        flags=flags_r,
-                        text=right_txt,
-                        color=color,
-                    ),
-                ]
-            else:
-                entry = [
-                    (left_txt, payload),
-                    MultiContentEntryText(
-                        pos=(10, 0),
-                        size=(list_w - 20, item_h),
-                        font=0,
-                        flags=flags_l,
-                        text=left_txt,
-                        color=color,
-                    ),
-                ]
-            mc_entries.append(entry)
-
         self["title_text"] = StaticText(title)
+
+        if self.cancel_timers:
+            self["cancel_list"] = MenuList(
+                self._build_cancel_entries(),
+                enableWrapAround=False,
+                content=eListboxPythonMultiContent,
+            )
+            self["cancel_list"].l.setFont(0, gFont("Regular", font_sz))
+            self["cancel_list"].l.setItemHeight(item_h)
+
         self["list"] = MenuList(
-            mc_entries,
+            self._build_base_entries(),
             enableWrapAround=True,
             content=eListboxPythonMultiContent,
         )
         self["list"].l.setFont(0, gFont("Regular", font_sz))
         self["list"].l.setItemHeight(item_h)
 
+        # Vyssi priorita (-2) pro smerove sipky, aby ridily oba seznamy bez preskakovani
         self["actions"] = ActionMap(
-            ["OkCancelActions"],
+            ["OkCancelActions", "DirectionActions"],
             {
                 "ok": self.keyOk,
                 "cancel": self.keyCancel,
+                "left": self.keyLeft,
+                "right": self.keyRight,
+                "up": self.keyUp,
+                "down": self.keyDown,
             },
-            -1,
+            -2,
         )
 
+        self.onLayoutFinish.append(self._update_focus)
+
+    def _format_cancel_row_text(self):
+        t = self.cancel_timers[self.cancel_idx]
+        if len(self.cancel_timers) > 1:
+            return "<<< Cancel timer: %s (%s) >>>" % (
+                t["box_name"],
+                t["tag"],
+            )
+        return ">>> Cancel timer: %s (%s) <<<" % (t["box_name"], t["tag"])
+
+    def _make_entry(self, left_txt, right_txt, color, payload):
+        flags_l = RT_HALIGN_LEFT | RT_VALIGN_CENTER
+        flags_r = RT_HALIGN_RIGHT | RT_VALIGN_CENTER
+        if right_txt:
+            left_w = self.list_w - self.right_w - 20
+            return [
+                (left_txt, payload),
+                MultiContentEntryText(
+                    pos=(10, 0),
+                    size=(left_w, self.item_h),
+                    font=0,
+                    flags=flags_l,
+                    text=left_txt,
+                    color=color,
+                ),
+                MultiContentEntryText(
+                    pos=(self.list_w - self.right_w - 10, 0),
+                    size=(self.right_w, self.item_h),
+                    font=0,
+                    flags=flags_r,
+                    text=right_txt,
+                    color=color,
+                ),
+            ]
+        return [
+            (left_txt, payload),
+            MultiContentEntryText(
+                pos=(10, 0),
+                size=(self.list_w - 20, self.item_h),
+                font=0,
+                flags=flags_l,
+                text=left_txt,
+                color=color,
+            ),
+        ]
+
+    def _build_cancel_entries(self):
+        if not self.cancel_timers:
+            return []
+        cur_t = self.cancel_timers[self.cancel_idx]
+        return [
+            self._make_entry(
+                self._format_cancel_row_text(),
+                "",
+                0x00FFCC33,
+                ("DELETE", cur_t),
+            )
+        ]
+
+    def _build_base_entries(self):
+        return [
+            self._make_entry(left_txt, right_txt, color, payload)
+            for left_txt, right_txt, color, payload in self.base_items
+        ]
+
+    def _update_focus(self):
+        try:
+            if self.cancel_timers:
+                self["cancel_list"].selectionEnabled(1 if self.focus_cancel else 0)
+                self["list"].selectionEnabled(0 if self.focus_cancel else 1)
+            else:
+                self["list"].selectionEnabled(1)
+        except Exception:
+            pass
+
+    def _rotate_cancel(self, delta):
+        if not self.focus_cancel or len(self.cancel_timers) <= 1:
+            return
+        try:
+            self.cancel_idx = (self.cancel_idx + delta) % len(self.cancel_timers)
+            self["cancel_list"].setList(self._build_cancel_entries())
+            self["cancel_list"].moveToIndex(0)
+        except Exception:
+            pass
+
+    def keyUp(self):
+        if not self.base_items:
+            return
+        if not self.cancel_timers:
+            self["list"].up()
+            return
+        if self.focus_cancel:
+            self.focus_cancel = False
+            self["list"].moveToIndex(len(self.base_items) - 1)
+            self._update_focus()
+        else:
+            if self["list"].getSelectedIndex() == 0:
+                self.focus_cancel = True
+                self._update_focus()
+            else:
+                self["list"].up()
+
+    def keyDown(self):
+        if not self.base_items:
+            return
+        if not self.cancel_timers:
+            self["list"].down()
+            return
+        if self.focus_cancel:
+            self.focus_cancel = False
+            self["list"].moveToIndex(0)
+            self._update_focus()
+        else:
+            if self["list"].getSelectedIndex() >= len(self.base_items) - 1:
+                self.focus_cancel = True
+                self._update_focus()
+            else:
+                self["list"].down()
+
+    def keyLeft(self):
+        self._rotate_cancel(-1)
+
+    def keyRight(self):
+        self._rotate_cancel(1)
+
     def keyOk(self):
-        cur = self["list"].getCurrent()
+        if self.focus_cancel and self.cancel_timers:
+            cur = self["cancel_list"].getCurrent()
+        else:
+            cur = self["list"].getCurrent()
         if cur:
             self.close(cur[0])
 
@@ -468,14 +598,14 @@ def _build_timer_entry(timer_item, is_fhd, item_h, blink_hide=False):
     # Poradi sloupcu: 1. Datum a cas, 2. Stav, 3. Znacka prijimace, 4. Kanal | Nazev poradu
     if is_fhd:
         col1_x, col1_w = 5, 355
-        col2_x, col2_w = 370, 225
-        col3_x, col3_w = 605, 135
-        col4_x, col4_w = 750, 1015
+        col2_x, col2_w = 370, 240
+        col3_x, col3_w = 620, 135
+        col4_x, col4_w = 765, 1000
     else:
         col1_x, col1_w = 5, 250
-        col2_x, col2_w = 260, 165
-        col3_x, col3_w = 430, 95
-        col4_x, col4_w = 530, 655
+        col2_x, col2_w = 260, 175
+        col3_x, col3_w = 440, 95
+        col4_x, col4_w = 540, 645
 
     return [
         timer_item,
@@ -535,13 +665,13 @@ class CombinedTimersScreen(Screen):
                 '<screen name="CombinedTimersScreen" position="50,55" size="1820,970" title="All Timers">'
                 '<widget source="title_text" render="Label" position="25,15" size="1770,50" font="Regular;34" foregroundColor="#00ffcc33" noWrap="1" />'
                 '<widget name="list" position="25,75" size="1770,%d" font="Regular;%d" itemHeight="%d" scrollbarMode="showOnDemand" enableWrapAround="1" />'
-                '<widget source="hint_ok" render="Label" position="25,922" size="185,38" font="Regular;26" foregroundColor="#00aaaaaa" noWrap="1" />'
-                '<widget source="hint_red" render="Label" position="210,922" size="75,38" font="Regular;26" foregroundColor="#00ff5555" noWrap="1" />'
-                '<widget source="hint_stop" render="Label" position="285,922" size="175,38" font="Regular;26" foregroundColor="#00aaaaaa" noWrap="1" />'
-                '<widget source="hint_yellow" render="Label" position="460,922" size="120,38" font="Regular;26" foregroundColor="#00ffdd33" noWrap="1" />'
-                '<widget source="hint_setup" render="Label" position="580,922" size="230,38" font="Regular;26" foregroundColor="#00aaaaaa" noWrap="1" />'
-                '<widget source="hint_blue" render="Label" position="810,922" size="85,38" font="Regular;26" foregroundColor="#0055aaff" noWrap="1" />'
-                '<widget source="hint_rest" render="Label" position="895,922" size="900,38" font="Regular;26" foregroundColor="#00aaaaaa" noWrap="1" />'
+                '<widget source="hint_ok" render="Label" position="25,922" size="190,38" font="Regular;26" foregroundColor="#00aaaaaa" noWrap="1" />'
+                '<widget source="hint_red" render="Label" position="215,922" size="75,38" font="Regular;26" foregroundColor="#00ff5555" noWrap="1" />'
+                '<widget source="hint_stop" render="Label" position="290,922" size="180,38" font="Regular;26" foregroundColor="#00aaaaaa" noWrap="1" />'
+                '<widget source="hint_yellow" render="Label" position="470,922" size="125,38" font="Regular;26" foregroundColor="#00ffdd33" noWrap="1" />'
+                '<widget source="hint_setup" render="Label" position="595,922" size="245,38" font="Regular;26" foregroundColor="#00aaaaaa" noWrap="1" />'
+                '<widget source="hint_blue" render="Label" position="840,922" size="90,38" font="Regular;26" foregroundColor="#0055aaff" noWrap="1" />'
+                '<widget source="hint_rest" render="Label" position="930,922" size="865,38" font="Regular;26" foregroundColor="#00aaaaaa" noWrap="1" />'
                 "</screen>"
             ) % (rows_h, font_sz, item_h)
         else:
@@ -555,10 +685,10 @@ class CombinedTimersScreen(Screen):
                 '<widget source="hint_ok" render="Label" position="15,606" size="135,32" font="Regular;18" foregroundColor="#00aaaaaa" noWrap="1" />'
                 '<widget source="hint_red" render="Label" position="150,606" size="55,32" font="Regular;18" foregroundColor="#00ff5555" noWrap="1" />'
                 '<widget source="hint_stop" render="Label" position="205,606" size="125,32" font="Regular;18" foregroundColor="#00aaaaaa" noWrap="1" />'
-                '<widget source="hint_yellow" render="Label" position="330,606" size="85,32" font="Regular;18" foregroundColor="#00ffdd33" noWrap="1" />'
-                '<widget source="hint_setup" render="Label" position="415,606" size="165,32" font="Regular;18" foregroundColor="#00aaaaaa" noWrap="1" />'
-                '<widget source="hint_blue" render="Label" position="580,606" size="62,32" font="Regular;18" foregroundColor="#0055aaff" noWrap="1" />'
-                '<widget source="hint_rest" render="Label" position="642,606" size="565,32" font="Regular;18" foregroundColor="#00aaaaaa" noWrap="1" />'
+                '<widget source="hint_yellow" render="Label" position="330,606" size="90,32" font="Regular;18" foregroundColor="#00ffdd33" noWrap="1" />'
+                '<widget source="hint_setup" render="Label" position="420,606" size="175,32" font="Regular;18" foregroundColor="#00aaaaaa" noWrap="1" />'
+                '<widget source="hint_blue" render="Label" position="595,606" size="65,32" font="Regular;18" foregroundColor="#0055aaff" noWrap="1" />'
+                '<widget source="hint_rest" render="Label" position="660,606" size="545,32" font="Regular;18" foregroundColor="#00aaaaaa" noWrap="1" />'
                 "</screen>"
             ) % (rows_h, font_sz, item_h)
 
@@ -568,7 +698,7 @@ class CombinedTimersScreen(Screen):
         self["title_text"] = StaticText(title)
         self["hint_ok"] = StaticText("OK = delete  |")
         self["hint_red"] = StaticText("RED")
-        self["hint_stop"] = StaticText("= Stop REC  |")
+        self["hint_stop"] = StaticText("= stop REC  |")
         self["hint_yellow"] = StaticText("YELLOW")
         self["hint_setup"] = StaticText("/ MENU = boxes  |")
         self["hint_blue"] = StaticText("BLUE")
@@ -669,7 +799,7 @@ class CombinedTimersScreen(Screen):
 class ChangeTimerEndScreen(Screen):
     def __init__(self, session, timer_item, max_end_ts=None, next_timer_info=""):
         Screen.__init__(self, session)
-        self.setTitle("Change REC End")
+        self.setTitle("Change REC end")
         self.timer_item = timer_item
         self.orig_end = int(timer_item["end"])
         self.cur_end = self.orig_end
@@ -707,7 +837,7 @@ class ChangeTimerEndScreen(Screen):
         inner_w = win_w - (2 * pad_x)
 
         self.skin = (
-            '<screen name="ChangeTimerEndScreen" position="%d,%d" size="%d,%d" title="Change REC End">'
+            '<screen name="ChangeTimerEndScreen" position="%d,%d" size="%d,%d" title="Change REC end">'
             '<widget source="title_lbl" render="Label" position="%d,%d" size="%d,%d" font="Regular;%d" foregroundColor="#00ffcc33" noWrap="1" />'
             '<widget source="info_lbl" render="Label" position="%d,%d" size="%d,%d" font="Regular;%d" foregroundColor="#00cccccc" noWrap="1" />'
             '<widget source="time_lbl" render="Label" position="%d,%d" size="%d,%d" font="Regular;%d" foregroundColor="#00ffffff" halign="center" noWrap="1" />'
@@ -724,7 +854,7 @@ class ChangeTimerEndScreen(Screen):
         )
 
         self["title_lbl"] = StaticText(
-            "Change REC End [%s]: %s" % (timer_item["tag"], timer_item["name"])
+            "Change REC end [%s]: %s" % (timer_item["tag"], timer_item["name"])
         )
         try:
             dt_b = datetime.fromtimestamp(int(timer_item["begin"]))
@@ -779,7 +909,7 @@ class ChangeTimerEndScreen(Screen):
             self._refresh_display()
             self.session.open(
                 MessageBox,
-                "WARNING! Reached start time of the next waiting timer!!!",
+                "WARNING! You have reached the start time of a waiting recording!!!",
                 MessageBox.TYPE_WARNING,
                 timeout=5,
             )
@@ -803,8 +933,8 @@ class RemoteTimerMarginScreen(ConfigListScreen, Screen):
     def __init__(self, session, box, timer_data, default_before, default_after, existing_timer=None):
         Screen.__init__(self, session)
         self.existing_timer = existing_timer
-        box_title = box["name"] if box is not None else "This Receiver"
-        win_title = "Time Margins (%s)" % box_title
+        box_title = box["name"] if box is not None else "This receiver"
+        win_title = "Time margins (%s)" % box_title
         self.setTitle(win_title)
 
         desktop_w = 1920
@@ -827,8 +957,8 @@ class RemoteTimerMarginScreen(ConfigListScreen, Screen):
                 '<widget source="event_lbl" render="Label" position="%d,72" size="%d,40" font="Regular;28" foregroundColor="#00ffffff" noWrap="1" />'
                 '<widget name="config" position="%d,125" size="%d,220" font="Regular;30" itemHeight="52" scrollbarMode="showOnDemand" enableWrapAround="1" />'
                 '<widget source="description" render="Label" position="%d,365" size="%d,175" font="Regular;26" foregroundColor="#00dddddd" />'
-                '<widget source="key_red" render="Label" position="%d,555" size="250,42" font="Regular;28" foregroundColor="#00ff5555" noWrap="1" />'
-                '<widget source="key_green" render="Label" position="%d,555" size="250,42" font="Regular;28" foregroundColor="#0055ff55" noWrap="1" />'
+                '<widget source="key_red" render="Label" position="%d,555" size="270,42" font="Regular;28" foregroundColor="#00ff5555" noWrap="1" />'
+                '<widget source="key_green" render="Label" position="%d,555" size="260,42" font="Regular;28" foregroundColor="#0055ff55" noWrap="1" />'
                 '<widget source="footnote" render="Label" position="%d,558" size="%d,38" font="Regular;24" foregroundColor="#00aaaaaa" halign="right" noWrap="1" />'
                 "</screen>"
             ) % (
@@ -842,8 +972,8 @@ class RemoteTimerMarginScreen(ConfigListScreen, Screen):
                 pad_x, inner_w,
                 pad_x, inner_w,
                 pad_x,
-                pad_x + 265,
-                pad_x + 530, inner_w - 530,
+                pad_x + 280,
+                pad_x + 550, inner_w - 550,
             )
         else:
             win_w, win_h = 960, 440
@@ -855,8 +985,8 @@ class RemoteTimerMarginScreen(ConfigListScreen, Screen):
                 '<widget source="event_lbl" render="Label" position="%d,50" size="%d,28" font="Regular;20" foregroundColor="#00ffffff" noWrap="1" />'
                 '<widget name="config" position="%d,88" size="%d,156" font="Regular;21" itemHeight="38" scrollbarMode="showOnDemand" enableWrapAround="1" />'
                 '<widget source="description" render="Label" position="%d,258" size="%d,125" font="Regular;18" foregroundColor="#00dddddd" />'
-                '<widget source="key_red" render="Label" position="%d,394" size="175,30" font="Regular;20" foregroundColor="#00ff5555" noWrap="1" />'
-                '<widget source="key_green" render="Label" position="%d,394" size="175,30" font="Regular;20" foregroundColor="#0055ff55" noWrap="1" />'
+                '<widget source="key_red" render="Label" position="%d,394" size="190,30" font="Regular;20" foregroundColor="#00ff5555" noWrap="1" />'
+                '<widget source="key_green" render="Label" position="%d,394" size="185,30" font="Regular;20" foregroundColor="#0055ff55" noWrap="1" />'
                 '<widget source="footnote" render="Label" position="%d,396" size="%d,28" font="Regular;17" foregroundColor="#00aaaaaa" halign="right" noWrap="1" />'
                 "</screen>"
             ) % (
@@ -870,8 +1000,8 @@ class RemoteTimerMarginScreen(ConfigListScreen, Screen):
                 pad_x, inner_w,
                 pad_x, inner_w,
                 pad_x,
-                pad_x + 190,
-                pad_x + 380, inner_w - 380,
+                pad_x + 200,
+                pad_x + 395, inner_w - 395,
             )
 
         self["title_lbl"] = StaticText(win_title)
@@ -881,9 +1011,9 @@ class RemoteTimerMarginScreen(ConfigListScreen, Screen):
         self["key_green"] = StaticText("GREEN = Record")
         self["footnote"] = StaticText("LEFT/RIGHT = change  |  OK = record")
         self["description"] = StaticText(
-            "If you are in a different folder in the recordings list than the default recording path, "
-            "you can immediately switch the recording folder on the last line using LEFT/RIGHT arrow keys. "
-            "Both the default folder and your current folder are always available."
+            "If you are browsing a different folder in the movie list than the default recording folder, "
+            "you can immediately switch the recording path on the last row using Left/Right arrows. "
+            "Both the default folder and your currently open folder are always available."
         )
 
         val_before = max(0, min(120, int(default_before)))
@@ -904,7 +1034,7 @@ class RemoteTimerMarginScreen(ConfigListScreen, Screen):
             if cached_locs:
                 loc_choices = [(p, p) for p in cached_locs]
             else:
-                loc_choices = [("", "Auto (current on box)")]
+                loc_choices = [("", "Automatic (current on box)")]
                 sync_timer_cache_async()
         self.cfg_dirname = ConfigSelection(default=loc_choices[0][0], choices=loc_choices)
 
@@ -1110,7 +1240,7 @@ def _sync_timer_cache_worker():
                     continue
                 raw_sref = _xml_text(item, "e2servicereference")
                 sref = _normalize_sref(raw_sref)
-                name = _xml_text(item, "e2name", "No title")
+                name = _xml_text(item, "e2name", "Untitled")
                 eit_str = _xml_text(item, "e2eit", "0")
                 begin_str = _xml_text(item, "e2timebegin", "0")
                 end_str = _xml_text(item, "e2timeend", "0")
@@ -1176,7 +1306,7 @@ def _format_plan_in_minutes(begin_ts):
         mins = max(1, (diff + 59) // 60)
         if mins >= 100:
             return ""
-        return "Plan. REC in: %d min" % mins
+        return "Sched. REC in: %d min" % mins
     except Exception:
         return ""
 
@@ -1374,13 +1504,13 @@ def find_matching_timers_for_event(session, service, event):
                         {
                             "is_local": True,
                             "box": None,
-                            "box_name": "This Receiver",
+                            "box_name": "This receiver",
                             "tag": l_tag,
                             "local_obj": t,
                             "sref": t_sref,
                             "begin": t_begin,
                             "end": t_end,
-                            "name": str(getattr(t, "name", "No title") or "No title"),
+                            "name": str(getattr(t, "name", "Untitled") or "Untitled"),
                         }
                     )
     except Exception:
@@ -1410,11 +1540,71 @@ def find_matching_timers_for_event(session, service, event):
                     "sref": t["raw_sref"],
                     "begin": t["begin"],
                     "end": t["end"],
-                    "name": t.get("name", "No title"),
+                    "name": t.get("name", "Untitled"),
                 }
             )
 
     return matches
+
+
+def find_all_active_recording_timers(session):
+    now_ts = int(time.time())
+    active = []
+
+    # 1. Lokalni prave bezici nahravky
+    try:
+        rec_timer = getattr(session.nav, "RecordTimer", None)
+        if rec_timer is not None:
+            l_tag = get_local_tag()
+            for t in list(getattr(rec_timer, "timer_list", [])):
+                if getattr(t, "disabled", False):
+                    continue
+                if str(getattr(t, "state", 0)) == "2":
+                    t_begin = int(getattr(t, "begin", 0))
+                    t_end = int(getattr(t, "end", 0))
+                    if t_end > now_ts:
+                        t_sref = _normalize_sref(
+                            get_sref_string(getattr(t, "service_ref", None))
+                        )
+                        active.append(
+                            {
+                                "is_local": True,
+                                "box": None,
+                                "box_name": "This receiver",
+                                "tag": l_tag,
+                                "local_obj": t,
+                                "sref": t_sref,
+                                "begin": t_begin,
+                                "end": t_end,
+                                "name": str(getattr(t, "name", "Untitled") or "Untitled"),
+                            }
+                        )
+    except Exception:
+        pass
+
+    # 2. Vzdalene prave bezici nahravky z cache
+    with _CACHE_LOCK:
+        snapshot = list(REMOTE_TIMER_CACHE)
+
+    for t in snapshot:
+        is_rec = (t.get("state") == "2") or (t["begin"] <= now_ts < t["end"])
+        if is_rec and t["end"] > now_ts:
+            box = t["box"]
+            active.append(
+                {
+                    "is_local": False,
+                    "box": box,
+                    "box_name": box["name"],
+                    "tag": t["tag"],
+                    "local_obj": None,
+                    "sref": t["raw_sref"],
+                    "begin": t["begin"],
+                    "end": t["end"],
+                    "name": t.get("name", "Untitled"),
+                }
+            )
+
+    return active
 
 
 def add_local_timer(
@@ -1457,7 +1647,7 @@ def add_local_timer(
         if rec_timer is None:
             session.open(
                 MessageBox,
-                "Could not access RecordTimer on this receiver.",
+                "Could not access RecordTimer of this receiver.",
                 MessageBox.TYPE_ERROR,
                 timeout=6,
             )
@@ -1479,7 +1669,7 @@ def add_local_timer(
                 margin_info = "-%d min / infinite (\u221e)" % margin_before_min
             else:
                 margin_info = "-%d / +%d min" % (margin_before_min, margin_after_min)
-            msg = "Timer added on This Receiver (%s):\n%s\nPath: %s" % (
+            msg = "Timer added on This receiver (%s):\n%s\nPath: %s" % (
                 margin_info,
                 timer_data["name"],
                 dir_info,
@@ -1549,7 +1739,7 @@ def send_timer_http(
         wait_dlg = session.openWithCallback(
             _show_result,
             MessageBox,
-            "Connecting (spinning up HDD)...\n(%s)" % box["name"],
+            "Connecting (spinning up disk)...\n(%s)" % box["name"],
             MessageBox.TYPE_INFO,
             enable_input=False,
         )
@@ -1676,10 +1866,10 @@ def delete_timer_from_epg(session, timer_item, on_changed_callback=None):
         if ok:
             if callable(on_changed_callback):
                 on_changed_callback()
-            msg = "Timer cancelled (%s):\n%s" % (timer_item["box_name"], timer_item["name"])
+            msg = "Timer canceled (%s):\n%s" % (timer_item["box_name"], timer_item["name"])
             session.open(MessageBox, msg, MessageBox.TYPE_INFO, timeout=4)
         else:
-            msg = "Error cancelling local timer:\n%s" % statetext
+            msg = "Error canceling local timer:\n%s" % statetext
             session.open(MessageBox, msg, MessageBox.TYPE_ERROR, timeout=6)
         return
 
@@ -1701,19 +1891,19 @@ def delete_timer_from_epg(session, timer_item, on_changed_callback=None):
             if callable(on_changed_callback):
                 on_changed_callback()
             sync_timer_cache_async()
-            msg = "Timer cancelled (%s):\n%s" % (box["name"], timer_item["name"])
+            msg = "Timer canceled (%s):\n%s" % (box["name"], timer_item["name"])
             session.open(MessageBox, msg, MessageBox.TYPE_INFO, timeout=4)
         else:
-            msg = "Box %s rejected timer cancellation:\n%s" % (box["name"], statetext)
+            msg = "Box %s refused to cancel timer:\n%s" % (box["name"], statetext)
             session.open(MessageBox, msg, MessageBox.TYPE_ERROR, timeout=6)
     except urllib.error.HTTPError as e:
-        msg = "HTTP error cancelling on %s: %s" % (box["name"], e.code)
+        msg = "HTTP error canceling on %s: %s" % (box["name"], e.code)
         session.open(MessageBox, msg, MessageBox.TYPE_ERROR, timeout=6)
     except urllib.error.URLError as e:
         msg = "Cannot connect to %s:\n%s" % (box["name"], e.reason)
         session.open(MessageBox, msg, MessageBox.TYPE_ERROR, timeout=6)
     except Exception as e:
-        msg = "Error cancelling (%s):\n%s" % (box["name"], str(e))
+        msg = "Error canceling (%s):\n%s" % (box["name"], str(e))
         session.open(MessageBox, msg, MessageBox.TYPE_ERROR, timeout=6)
 
 
@@ -1818,7 +2008,7 @@ def open_box_selector(session, event, service, local_callback=None, on_changed_c
     if event is None or service is None:
         session.open(
             MessageBox,
-            "Failed to load event data (missing EPG or channel).",
+            "Could not load event data (missing EPG or channel).",
             MessageBox.TYPE_ERROR,
             timeout=5,
         )
@@ -1828,7 +2018,7 @@ def open_box_selector(session, event, service, local_callback=None, on_changed_c
     if not sref:
         session.open(
             MessageBox,
-            "Missing Service Reference (sRef) of selected channel.",
+            "Missing Service Reference (sRef) for the selected channel.",
             MessageBox.TYPE_ERROR,
             timeout=5,
         )
@@ -1841,24 +2031,30 @@ def open_box_selector(session, event, service, local_callback=None, on_changed_c
         "sref": sref,
         "raw_begin": raw_begin,
         "raw_end": raw_end,
-        "name": event.getEventName() or "No title",
+        "name": event.getEventName() or "Untitled",
         "desc": event.getShortDescription() or "",
         "eit": int(event.getEventId() or 0),
     }
 
+    # Slouceni casovacu pro vybrany porad + vsech prave bezicich nahravek (lokalni + az 4 vzdalene boxy)
+    existing_timers = find_matching_timers_for_event(session, service, event)
+    active_recs = find_all_active_recording_timers(session)
+    cancel_timers = []
+    seen_keys = set()
+    for t in existing_timers + active_recs:
+        key = (
+            bool(t.get("is_local")),
+            t.get("tag", ""),
+            _normalize_sref(t.get("sref", "")),
+            int(t.get("begin", 0)),
+            int(t.get("end", 0)),
+        )
+        if key not in seen_keys:
+            seen_keys.add(key)
+            cancel_timers.append(t)
+
     # Polozky: (levy_text, pravy_text, barva, payload)
     items = []
-
-    existing_timers = find_matching_timers_for_event(session, service, event)
-    for ex in existing_timers:
-        items.append(
-            (
-                ">>> Cancel timer: %s (%s) <<<" % (ex["box_name"], ex["tag"]),
-                "",
-                0x00FFCC33,
-                ("DELETE", ex),
-            )
-        )
 
     local_rec_end = get_local_recording_end_ts(session)
     if local_rec_end:
@@ -1870,7 +2066,7 @@ def open_box_selector(session, event, service, local_callback=None, on_changed_c
         local_color = 0x00FFDD33 if local_right else None
     items.append(
         (
-            "(%s) This Receiver" % get_local_tag(),
+            "(%s) This receiver" % get_local_tag(),
             local_right,
             local_color,
             ("LOCAL", None),
@@ -1919,6 +2115,7 @@ def open_box_selector(session, event, service, local_callback=None, on_changed_c
         BoxSelectorScreen,
         title,
         items,
+        cancel_timers=cancel_timers,
     )
 
 
@@ -1977,7 +2174,7 @@ def fetch_local_timers(session):
             end_ts = int(getattr(t, "end", 0))
             state_str = str(getattr(t, "state", 0))
             disabled_str = "1" if getattr(t, "disabled", False) else "0"
-            name = str(getattr(t, "name", "No title") or "No title")
+            name = str(getattr(t, "name", "Untitled") or "Untitled")
             filename = str(getattr(t, "Filename", "") or "")
             sref_obj = getattr(t, "service_ref", None)
             if sref_obj and hasattr(sref_obj, "getServiceName"):
@@ -1993,7 +2190,7 @@ def fetch_local_timers(session):
                 {
                     "is_local": True,
                     "box": None,
-                    "box_name": "This Receiver",
+                    "box_name": "This receiver",
                     "tag": l_tag,
                     "local_obj": t,
                     "filename": filename,
@@ -2029,7 +2226,7 @@ def fetch_remote_timers(box):
     for item in root.findall("e2timer"):
         sref = _xml_text(item, "e2servicereference")
         sname = _xml_text(item, "e2servicename", "Unknown channel")
-        name = _xml_text(item, "e2name", "No title")
+        name = _xml_text(item, "e2name", "Untitled")
         filename = _xml_text(item, "e2filename", "")
         begin_str = _xml_text(item, "e2timebegin", "0")
         end_str = _xml_text(item, "e2timeend", "0")
@@ -2118,7 +2315,7 @@ def change_any_timer_end(session, timer_item, new_end_ts):
     if timer_item["is_local"]:
         ok, statetext = _change_local_timer_end_raw(session, timer_item, new_end_ts)
         if ok:
-            msg = "Recording end changed (%s):\n%s\nNew end: %s" % (
+            msg = "Recording end time changed (%s):\n%s\nNew end: %s" % (
                 timer_item["box_name"],
                 timer_item["name"],
                 new_end_str,
@@ -2131,7 +2328,7 @@ def change_any_timer_end(session, timer_item, new_end_ts):
                 timeout=3,
             )
         else:
-            msg = "Error changing local timer end:\n%s" % statetext
+            msg = "Error changing local timer end time:\n%s" % statetext
             session.openWithCallback(
                 lambda _res: open_combined_timers(session),
                 MessageBox,
@@ -2146,7 +2343,7 @@ def change_any_timer_end(session, timer_item, new_end_ts):
         state_ok, statetext = _change_remote_timer_end_raw(box, timer_item, new_end_ts)
         sync_timer_cache_async()
         if state_ok:
-            msg = "Recording end changed (%s):\n%s\nNew end: %s" % (
+            msg = "Recording end time changed (%s):\n%s\nNew end: %s" % (
                 box["name"],
                 timer_item["name"],
                 new_end_str,
@@ -2159,7 +2356,7 @@ def change_any_timer_end(session, timer_item, new_end_ts):
                 timeout=3,
             )
         else:
-            msg = "Box %s rejected timer end change:\n%s" % (box["name"], statetext)
+            msg = "Box %s refused to change timer end time:\n%s" % (box["name"], statetext)
             session.openWithCallback(
                 lambda _res: open_combined_timers(session),
                 MessageBox,
@@ -2168,7 +2365,7 @@ def change_any_timer_end(session, timer_item, new_end_ts):
                 timeout=6,
             )
     except urllib.error.HTTPError as e:
-        msg = "HTTP error changing on %s: %s" % (box["name"], e.code)
+        msg = "HTTP error changing timer on %s: %s" % (box["name"], e.code)
         session.openWithCallback(
             lambda _res: open_combined_timers(session),
             MessageBox,
@@ -2186,7 +2383,7 @@ def change_any_timer_end(session, timer_item, new_end_ts):
             timeout=6,
         )
     except Exception as e:
-        msg = "Error changing end (%s):\n%s" % (box["name"], str(e))
+        msg = "Error changing end time (%s):\n%s" % (box["name"], str(e))
         session.openWithCallback(
             lambda _res: open_combined_timers(session),
             MessageBox,
@@ -2405,7 +2602,7 @@ def stop_any_timer(session, timer_item, delete_after=False):
             time.sleep(1.2)
             ok_rec, rec_txt = _delete_local_recording_raw(timer_item)
             if ok_rec:
-                msg = "Recording stopped, timer and recording deleted (%s):\n%s" % (
+                msg = "Recording stopped, timer and file deleted (%s):\n%s" % (
                     timer_item["box_name"],
                     timer_item["name"],
                 )
@@ -2460,7 +2657,7 @@ def stop_any_timer(session, timer_item, delete_after=False):
             del_ok, del_txt = _delete_single_timer_raw(box, timer_item)
             sync_timer_cache_async()
             if not del_ok:
-                msg = "Box %s rejected stop and delete:\n%s" % (
+                msg = "Box %s refused to stop and delete timer:\n%s" % (
                     box["name"],
                     del_txt,
                 )
@@ -2476,7 +2673,7 @@ def stop_any_timer(session, timer_item, delete_after=False):
             time.sleep(1.2)
             rec_ok, rec_txt = _delete_remote_recording_raw(box, timer_item)
             if rec_ok:
-                msg = "Recording stopped, timer and recording deleted (%s):\n%s" % (
+                msg = "Recording stopped, timer and file deleted (%s):\n%s" % (
                     box["name"],
                     timer_item["name"],
                 )
@@ -2488,7 +2685,7 @@ def stop_any_timer(session, timer_item, delete_after=False):
                     timeout=4,
                 )
             else:
-                msg = "Timer deleted, but box %s could not delete recording:\n%s" % (
+                msg = "Timer deleted, but box %s failed to delete recording:\n%s" % (
                     box["name"],
                     rec_txt,
                 )
@@ -2513,7 +2710,7 @@ def stop_any_timer(session, timer_item, delete_after=False):
                 timeout=3,
             )
         else:
-            msg = "Box %s rejected stopping recording:\n%s" % (box["name"], statetext)
+            msg = "Box %s refused to stop recording:\n%s" % (box["name"], statetext)
             session.openWithCallback(
                 lambda _res: open_combined_timers(session),
                 MessageBox,
@@ -2617,7 +2814,7 @@ def cleanup_all_finished_and_failed(session, timers_to_delete):
             pass
 
     sync_timer_cache_async()
-    msg = "Deleted %d finished/failed timers from all receivers." % deleted
+    msg = "Deleted %d finished/failed timers across all receivers." % deleted
     session.openWithCallback(
         lambda _res: open_combined_timers(session),
         MessageBox,
@@ -2658,7 +2855,7 @@ def delete_any_timer(session, timer_item):
                 timeout=3,
             )
         else:
-            msg = "Box %s rejected timer deletion:\n%s" % (box["name"], statetext)
+            msg = "Box %s refused to delete timer:\n%s" % (box["name"], statetext)
             session.open(MessageBox, msg, MessageBox.TYPE_ERROR, timeout=6)
     except urllib.error.HTTPError as e:
         msg = "HTTP error deleting on %s: %s" % (box["name"], e.code)
@@ -2698,7 +2895,7 @@ def open_combined_timers(session, **kwargs):
     rows_spec = []
     if not active_boxes:
         rows_spec.append(
-            ("BANNER", "OPEN_SETUP", ">>> No remote box configured - open settings <<<")
+            ("BANNER", "OPEN_SETUP", ">>> No remote box configured – open settings <<<")
         )
 
     if offline_boxes:
@@ -2720,7 +2917,7 @@ def open_combined_timers(session, **kwargs):
 
     if not rows_spec:
         rows_spec.append(
-            ("BANNER", "OPEN_SETUP", "No timers (YELLOW button = box settings)")
+            ("BANNER", "OPEN_SETUP", "No timers found (YELLOW button = box settings)")
         )
 
     def on_screen_closed(result):
@@ -2741,7 +2938,7 @@ def open_combined_timers(session, **kwargs):
                 session.openWithCallback(
                     lambda _res: open_combined_timers(session),
                     MessageBox,
-                    "End time can only be changed for active or waiting timers.",
+                    "End time can only be changed for running or waiting timers.",
                     MessageBox.TYPE_INFO,
                     timeout=3,
                 )
@@ -2754,7 +2951,7 @@ def open_combined_timers(session, **kwargs):
             if next_t:
                 try:
                     dt_next = datetime.fromtimestamp(int(next_t["begin"]))
-                    next_info = "Next waiting timer on [%s]: %s (%s)" % (
+                    next_info = "Next waiting on [%s]: %s (%s)" % (
                         t_item["tag"],
                         dt_next.strftime("%d.%m %H:%M"),
                         next_t["name"],
@@ -2782,7 +2979,7 @@ def open_combined_timers(session, **kwargs):
                 session.openWithCallback(
                     lambda _res: open_combined_timers(session),
                     MessageBox,
-                    "Selected timer is not currently recording.",
+                    "The selected timer is not currently recording.",
                     MessageBox.TYPE_INFO,
                     timeout=3,
                 )
@@ -3230,7 +3427,7 @@ def Plugins(**kwargs):
         ),
         PluginDescriptor(
             name="All Timers",
-            description="Combined list and deletion of timers from all receivers",
+            description="Combined list and management of timers from all receivers",
             where=[
                 PluginDescriptor.WHERE_EXTENSIONSMENU,
                 PluginDescriptor.WHERE_PLUGINMENU,
