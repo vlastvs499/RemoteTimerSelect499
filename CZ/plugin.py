@@ -283,9 +283,13 @@ def open_setup_screen(session, callback=None, **kwargs):
 
 
 class BoxSelectorScreen(Screen):
-    def __init__(self, session, title, items):
+    def __init__(self, session, title, items, cancel_timers=None):
         Screen.__init__(self, session)
-        self.setTitle(title)
+        self.setTitle("")
+        self.cancel_timers = list(cancel_timers) if cancel_timers else []
+        self.cancel_idx = 0
+        self.base_items = list(items)
+        self.focus_cancel = bool(self.cancel_timers)
 
         desktop_w = 1920
         desktop_h = 1080
@@ -297,118 +301,244 @@ class BoxSelectorScreen(Screen):
             pass
 
         is_fhd = desktop_w >= 1920
-        visible_rows = max(3, min(10, len(items)))
+        visible_rows = max(2, min(10, len(self.base_items)))
 
         if is_fhd:
             font_sz = 36
             item_h = 56
             win_w = 1180
             pad_x = 30
-            title_h = 50
-            list_y = 80
-            list_h = visible_rows * item_h
-            win_h = list_y + list_h + 30
+            title_y = 16
+            title_h = 56
+            first_row_y = 108
+            gap_mid = item_h // 2
             right_w = 420
-            title_font = 32
+            title_font = 40
+            pad_bottom = 24
         else:
             font_sz = 25
             item_h = 40
             win_w = 820
             pad_x = 20
-            title_h = 36
-            list_y = 58
-            list_h = visible_rows * item_h
-            win_h = list_y + list_h + 22
+            title_y = 12
+            title_h = 40
+            first_row_y = 78
+            gap_mid = item_h // 2
             right_w = 300
-            title_font = 22
+            title_font = 28
+            pad_bottom = 18
 
+        list_h = visible_rows * item_h
+        if self.cancel_timers:
+            cancel_y = first_row_y
+            list_y = cancel_y + item_h + gap_mid
+        else:
+            cancel_y = first_row_y
+            list_y = first_row_y
+
+        win_h = list_y + list_h + pad_bottom
         pos_x = max(20, (desktop_w - win_w) // 2)
         pos_y = max(20, (desktop_h - win_h) // 2)
-        list_w = win_w - (2 * pad_x)
+        self.list_w = win_w - (2 * pad_x)
+        self.right_w = right_w
+        self.item_h = item_h
+
+        cancel_widget_xml = ""
+        if self.cancel_timers:
+            cancel_widget_xml = (
+                '<widget name="cancel_list" position="%d,%d" size="%d,%d" font="Regular;%d" itemHeight="%d" backgroundColor="#18000000" transparent="1" scrollbarMode="showNever" enableWrapAround="0" />'
+                % (pad_x, cancel_y, self.list_w, item_h, font_sz, item_h)
+            )
 
         self.skin = (
-            '<screen name="BoxSelectorScreen" position="%d,%d" size="%d,%d" title="%s">'
-            '<widget source="title_text" render="Label" position="%d,15" size="%d,%d" font="Regular;%d" foregroundColor="#00ffcc33" noWrap="1" />'
-            '<widget name="list" position="%d,%d" size="%d,%d" font="Regular;%d" itemHeight="%d" scrollbarMode="showOnDemand" enableWrapAround="1" />'
+            '<screen name="BoxSelectorScreen" position="%d,%d" size="%d,%d" title="" flags="wfNoBorder" backgroundColor="#18000000">'
+            '<widget source="title_text" render="Label" position="%d,%d" size="%d,%d" font="Regular;%d" foregroundColor="#00ffcc33" backgroundColor="#18000000" transparent="1" noWrap="1" />'
+            "%s"
+            '<widget name="list" position="%d,%d" size="%d,%d" font="Regular;%d" itemHeight="%d" backgroundColor="#18000000" transparent="1" scrollbarMode="showOnDemand" enableWrapAround="1" />'
             "</screen>"
         ) % (
             pos_x,
             pos_y,
             win_w,
             win_h,
-            title.replace('"', "&quot;"),
             pad_x,
-            list_w,
+            title_y,
+            self.list_w,
             title_h,
             title_font,
+            cancel_widget_xml,
             pad_x,
             list_y,
-            list_w,
+            self.list_w,
             list_h,
             font_sz,
             item_h,
         )
 
-        mc_entries = []
-        flags_l = RT_HALIGN_LEFT | RT_VALIGN_CENTER
-        flags_r = RT_HALIGN_RIGHT | RT_VALIGN_CENTER
-
-        for left_txt, right_txt, color, payload in items:
-            if right_txt:
-                left_w = list_w - right_w - 20
-                entry = [
-                    (left_txt, payload),
-                    MultiContentEntryText(
-                        pos=(10, 0),
-                        size=(left_w, item_h),
-                        font=0,
-                        flags=flags_l,
-                        text=left_txt,
-                        color=color,
-                    ),
-                    MultiContentEntryText(
-                        pos=(list_w - right_w - 10, 0),
-                        size=(right_w, item_h),
-                        font=0,
-                        flags=flags_r,
-                        text=right_txt,
-                        color=color,
-                    ),
-                ]
-            else:
-                entry = [
-                    (left_txt, payload),
-                    MultiContentEntryText(
-                        pos=(10, 0),
-                        size=(list_w - 20, item_h),
-                        font=0,
-                        flags=flags_l,
-                        text=left_txt,
-                        color=color,
-                    ),
-                ]
-            mc_entries.append(entry)
-
         self["title_text"] = StaticText(title)
+
+        if self.cancel_timers:
+            self["cancel_list"] = MenuList(
+                self._build_cancel_entries(),
+                enableWrapAround=False,
+                content=eListboxPythonMultiContent,
+            )
+            self["cancel_list"].l.setFont(0, gFont("Regular", font_sz))
+            self["cancel_list"].l.setItemHeight(item_h)
+
         self["list"] = MenuList(
-            mc_entries,
+            self._build_base_entries(),
             enableWrapAround=True,
             content=eListboxPythonMultiContent,
         )
         self["list"].l.setFont(0, gFont("Regular", font_sz))
         self["list"].l.setItemHeight(item_h)
 
+        # Vyssi priorita (-2) pro smerove sipky, aby ridily oba seznamy bez preskakovani
         self["actions"] = ActionMap(
-            ["OkCancelActions"],
+            ["OkCancelActions", "DirectionActions"],
             {
                 "ok": self.keyOk,
                 "cancel": self.keyCancel,
+                "left": self.keyLeft,
+                "right": self.keyRight,
+                "up": self.keyUp,
+                "down": self.keyDown,
             },
-            -1,
+            -2,
         )
 
+        self.onLayoutFinish.append(self._update_focus)
+
+    def _format_cancel_row_text(self):
+        t = self.cancel_timers[self.cancel_idx]
+        if len(self.cancel_timers) > 1:
+            return "<<< Zrušit časovač: %s (%s) >>>" % (
+                t["box_name"],
+                t["tag"],
+            )
+        return ">>> Zrušit časovač: %s (%s) <<<" % (t["box_name"], t["tag"])
+
+    def _make_entry(self, left_txt, right_txt, color, payload):
+        flags_l = RT_HALIGN_LEFT | RT_VALIGN_CENTER
+        flags_r = RT_HALIGN_RIGHT | RT_VALIGN_CENTER
+        if right_txt:
+            left_w = self.list_w - self.right_w - 20
+            return [
+                (left_txt, payload),
+                MultiContentEntryText(
+                    pos=(10, 0),
+                    size=(left_w, self.item_h),
+                    font=0,
+                    flags=flags_l,
+                    text=left_txt,
+                    color=color,
+                ),
+                MultiContentEntryText(
+                    pos=(self.list_w - self.right_w - 10, 0),
+                    size=(self.right_w, self.item_h),
+                    font=0,
+                    flags=flags_r,
+                    text=right_txt,
+                    color=color,
+                ),
+            ]
+        return [
+            (left_txt, payload),
+            MultiContentEntryText(
+                pos=(10, 0),
+                size=(self.list_w - 20, self.item_h),
+                font=0,
+                flags=flags_l,
+                text=left_txt,
+                color=color,
+            ),
+        ]
+
+    def _build_cancel_entries(self):
+        if not self.cancel_timers:
+            return []
+        cur_t = self.cancel_timers[self.cancel_idx]
+        return [
+            self._make_entry(
+                self._format_cancel_row_text(),
+                "",
+                0x00FFCC33,
+                ("DELETE", cur_t),
+            )
+        ]
+
+    def _build_base_entries(self):
+        return [
+            self._make_entry(left_txt, right_txt, color, payload)
+            for left_txt, right_txt, color, payload in self.base_items
+        ]
+
+    def _update_focus(self):
+        try:
+            if self.cancel_timers:
+                self["cancel_list"].selectionEnabled(1 if self.focus_cancel else 0)
+                self["list"].selectionEnabled(0 if self.focus_cancel else 1)
+            else:
+                self["list"].selectionEnabled(1)
+        except Exception:
+            pass
+
+    def _rotate_cancel(self, delta):
+        if not self.focus_cancel or len(self.cancel_timers) <= 1:
+            return
+        try:
+            self.cancel_idx = (self.cancel_idx + delta) % len(self.cancel_timers)
+            self["cancel_list"].setList(self._build_cancel_entries())
+            self["cancel_list"].moveToIndex(0)
+        except Exception:
+            pass
+
+    def keyUp(self):
+        if not self.base_items:
+            return
+        if not self.cancel_timers:
+            self["list"].up()
+            return
+        if self.focus_cancel:
+            self.focus_cancel = False
+            self["list"].moveToIndex(len(self.base_items) - 1)
+            self._update_focus()
+        else:
+            if self["list"].getSelectedIndex() == 0:
+                self.focus_cancel = True
+                self._update_focus()
+            else:
+                self["list"].up()
+
+    def keyDown(self):
+        if not self.base_items:
+            return
+        if not self.cancel_timers:
+            self["list"].down()
+            return
+        if self.focus_cancel:
+            self.focus_cancel = False
+            self["list"].moveToIndex(0)
+            self._update_focus()
+        else:
+            if self["list"].getSelectedIndex() >= len(self.base_items) - 1:
+                self.focus_cancel = True
+                self._update_focus()
+            else:
+                self["list"].down()
+
+    def keyLeft(self):
+        self._rotate_cancel(-1)
+
+    def keyRight(self):
+        self._rotate_cancel(1)
+
     def keyOk(self):
-        cur = self["list"].getCurrent()
+        if self.focus_cancel and self.cancel_timers:
+            cur = self["cancel_list"].getCurrent()
+        else:
+            cur = self["list"].getCurrent()
         if cur:
             self.close(cur[0])
 
@@ -1417,6 +1547,66 @@ def find_matching_timers_for_event(session, service, event):
     return matches
 
 
+def find_all_active_recording_timers(session):
+    now_ts = int(time.time())
+    active = []
+
+    # 1. Lokalni prave bezici nahravky
+    try:
+        rec_timer = getattr(session.nav, "RecordTimer", None)
+        if rec_timer is not None:
+            l_tag = get_local_tag()
+            for t in list(getattr(rec_timer, "timer_list", [])):
+                if getattr(t, "disabled", False):
+                    continue
+                if str(getattr(t, "state", 0)) == "2":
+                    t_begin = int(getattr(t, "begin", 0))
+                    t_end = int(getattr(t, "end", 0))
+                    if t_end > now_ts:
+                        t_sref = _normalize_sref(
+                            get_sref_string(getattr(t, "service_ref", None))
+                        )
+                        active.append(
+                            {
+                                "is_local": True,
+                                "box": None,
+                                "box_name": "Tento přijímač",
+                                "tag": l_tag,
+                                "local_obj": t,
+                                "sref": t_sref,
+                                "begin": t_begin,
+                                "end": t_end,
+                                "name": str(getattr(t, "name", "Bez názvu") or "Bez názvu"),
+                            }
+                        )
+    except Exception:
+        pass
+
+    # 2. Vzdalene prave bezici nahravky z cache
+    with _CACHE_LOCK:
+        snapshot = list(REMOTE_TIMER_CACHE)
+
+    for t in snapshot:
+        is_rec = (t.get("state") == "2") or (t["begin"] <= now_ts < t["end"])
+        if is_rec and t["end"] > now_ts:
+            box = t["box"]
+            active.append(
+                {
+                    "is_local": False,
+                    "box": box,
+                    "box_name": box["name"],
+                    "tag": t["tag"],
+                    "local_obj": None,
+                    "sref": t["raw_sref"],
+                    "begin": t["begin"],
+                    "end": t["end"],
+                    "name": t.get("name", "Bez názvu"),
+                }
+            )
+
+    return active
+
+
 def add_local_timer(
     session,
     timer_data,
@@ -1846,19 +2036,25 @@ def open_box_selector(session, event, service, local_callback=None, on_changed_c
         "eit": int(event.getEventId() or 0),
     }
 
+    # Slouceni casovacu pro vybrany porad + vsech prave bezicich nahravek (lokalni + az 4 vzdalene boxy)
+    existing_timers = find_matching_timers_for_event(session, service, event)
+    active_recs = find_all_active_recording_timers(session)
+    cancel_timers = []
+    seen_keys = set()
+    for t in existing_timers + active_recs:
+        key = (
+            bool(t.get("is_local")),
+            t.get("tag", ""),
+            _normalize_sref(t.get("sref", "")),
+            int(t.get("begin", 0)),
+            int(t.get("end", 0)),
+        )
+        if key not in seen_keys:
+            seen_keys.add(key)
+            cancel_timers.append(t)
+
     # Polozky: (levy_text, pravy_text, barva, payload)
     items = []
-
-    existing_timers = find_matching_timers_for_event(session, service, event)
-    for ex in existing_timers:
-        items.append(
-            (
-                ">>> Zrušit časovač: %s (%s) <<<" % (ex["box_name"], ex["tag"]),
-                "",
-                0x00FFCC33,
-                ("DELETE", ex),
-            )
-        )
 
     local_rec_end = get_local_recording_end_ts(session)
     if local_rec_end:
@@ -1919,6 +2115,7 @@ def open_box_selector(session, event, service, local_callback=None, on_changed_c
         BoxSelectorScreen,
         title,
         items,
+        cancel_timers=cancel_timers,
     )
 
 
